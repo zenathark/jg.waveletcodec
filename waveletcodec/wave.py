@@ -7,7 +7,7 @@ Description: Definition of the wavelet data type
 """
 
 import numpy as np
-import WavePy.tools as tools
+import waveletcodec.tools as tools
 
 
 class Wavelet(np.ndarray):
@@ -22,13 +22,8 @@ class Wavelet(np.ndarray):
 
     """
 
-    def __init__(self, level, **kwargs):
-        if 'filter' in kwargs:
-            filter_ = kwargs['filter']
-        else:
-            filter_ = None
+    def __init__(self, *args, **kwargs):
         np.ndarray.__init__(self, kwargs)
-
 
     @staticmethod
     def fromArray(array, level, filter_=None):
@@ -47,6 +42,6 @@ class Wavelet(np.ndarray):
 
         """
         tools.check_ndarray(array)
-        wavelet = Wavelet(level, filter=filter_, shape=array.shape,
+        wavelet = Wavelet(shape=array.shape,
                           buffer=array, dtype=array.dtype)
         return wavelet
