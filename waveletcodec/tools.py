@@ -144,13 +144,14 @@ def normalize(data, **kw):
 
 
 def check_ndarray(data):
-    """Checks if the given data is an ndarray, if not raises an exception
+    """Checks if the given data is an ndarray, if not raises an exception.
 
     Args:
         data The variable to be data checked
 
     Raises:
         A TypeError exception
+
     """
     if data.__class__ is not np.ndarray:
         raise TypeError("Argument of type numpy.ndarray expected")
@@ -172,3 +173,49 @@ def check_dim(data, dim):
     if data.ndim is not dim:
         msg = "Argument dimension mistmatch, expected " + dim + " dimensions"
         raise TypeError(msg)
+
+
+def psnr(original, signal):
+    """Calculate the psnr between the given signals.
+
+    This method calculates the psnr of the given signal. Such signals are
+    expected as a n-dimentional numpy.ndarray instance. The equation used for
+    the psnr calculation is:
+    .. math::
+        PSNR = 20\log_10(MAX) - 10\log_{10}(MSE)
+
+    Args:
+        original (numpy.ndarray): The original signal to be compared against
+        signal (numpy.ndarray): The signal to be compared
+
+    Kwargs:
+        MAX (int): The maximum value that a signal value can take. If MAX is
+        not given, MAX takes the value of the maximum value of the array
+        element np.type can take. Ex. if a signal has a dtype of numpy.uint8,
+        max will be 255.
+
+    Returns:
+        A float that contains the PSNR
+
+    """
+    return 10
+
+
+def mse(original, signal):
+    """Calculate the MSE between the given signals.
+
+    This method calculates the MSE between the given signals using the next
+    equation
+    .. math::
+        MSE = \frac{1}{n}\sum_{i=0}{n-1}\[O(n) - I(n)\]^2
+
+    where n is the size of the signal. If the given signal are n-dimentional,
+    n can be a vector containing the size of each dimention
+
+    Returns:
+        A float that contains the MSE between the given signals
+
+    """
+    diff = (original - signal) ** 2
+    MSE = diff.sum() / np.array(original.shape).prod()
+    return MSE

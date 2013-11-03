@@ -1,8 +1,9 @@
-""" Wavelet definition.
+"""Wavelet definition.
 
-File: wave.py
-Author: jcgalanh@gmail.com
-Description: Definition of the wavelet data type
+.. module:: wave
+   :platform: Unix, Windows
+
+.. modelauthor:: Juan C Galan-Hernandez <jcgalanh@gmail.com>
 
 """
 

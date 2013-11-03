@@ -1,12 +1,13 @@
 """Lifting Wavelet Transform Module.
 
-File: lwt.py
-Author: jcgalanh@gmail.com
-Description: This module contains an implementation of the lifting wavelet
-transform for common wavelets used in compression such as the cdf9 and the
-cdf 53. The lwt is only implemented for one and two dimensional signals.
+.. module:: lwt
+   :platform: Unix, Windows
+
+.. modelauthor:: Juan C Galan-Hernandez <jcgalanh@gmail.com>
 
 """
+from __future__ import division
+
 import numpy as np
 import waveletcodec.wave as wv
 import waveletcodec.tools as tl
@@ -39,6 +40,43 @@ class FilterBank(object):
         self._update = update
         self._predict = predict
         self._length = len(update)
+
+    def _forward_n(self, signal, level):
+        """Return the standard n level wavelet transform on 1D."""
+        end = signal.shape[0]
+        for _ in range(level):
+            signal[:end] = self._forward(signal[:end])
+            end //= 2
+        return signal
+
+    def _forward2D_n(self, signal, level):
+        """Return the standard n level wavelet transform on 2D."""
+        erows = signal.shape[0]
+        ecols = signal.shape[1]
+        for _ in range(level):
+            signal[:erows, :ecols] = self._forward2d(signal[:erows, :ecols])
+            erows //= 2
+            ecols //= 2
+        return signal
+
+    def _inverse_n(self, wavelet, level):
+        """Return the inverse standard n level wavelet transform on 1D."""
+        end = wavelet.shape[0]
+        end //= 2 ** level
+        for _ in range(level):
+            wavelet[:end] = self._inverse(wavelet[:end])
+            end *= 2
+        return wavelet
+
+    def _inverse2D_n(self, wavelet, level):
+        """Return the inverse standard n level wavelet transform on 2D."""
+        erows = wavelet.shape[0]
+        ecols = wavelet.shape[1]
+        for _ in range(level):
+            wavelet[:erows, :ecols] = self._forward2d(wavelet[:erows, :ecols])
+            erows //= 2
+            ecols //= 2
+        return wavelet
 
     def _forward(self, signal):
         """Calculate a one level forward lifting wavelet transform (LWT).
