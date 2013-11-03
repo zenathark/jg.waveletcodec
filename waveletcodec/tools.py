@@ -128,7 +128,7 @@ def normalize(data, **kw):
     """
     upper_bound = 1
     lower_bound = 0
-    dtype = np.float
+    dtype = np.float64
     if 'upper_bound' in kw:
         upper_bound = kw['upper_bound']
     if 'lower_bound' in kw:
@@ -144,7 +144,7 @@ def normalize(data, **kw):
 
 
 def check_ndarray(data):
-    """Checks if the given data is an ndarray, if not raises an exception.
+    """Check if the given data is an ndarray, if not raises an exception.
 
     Args:
         data The variable to be data checked
@@ -153,13 +153,12 @@ def check_ndarray(data):
         A TypeError exception
 
     """
-    if data.__class__ is not np.ndarray:
+    if isinstance(data.__class__, np.ndarray):
         raise TypeError("Argument of type numpy.ndarray expected")
 
 
 def check_dim(data, dim):
-    """Checks if the data is an instance of numpy.ndarray and checks if match
-    the given dimensions.
+    """Check if the data match the given dimensions.
 
     Args:
         data The instance to be type checked
@@ -168,6 +167,7 @@ def check_dim(data, dim):
     Raises:
         TypeEror if the data is not an instance of numpy.ndarray or if the
         data dimension does not match the desired amount
+
     """
     _check_ndarray(data)
     if data.ndim is not dim:

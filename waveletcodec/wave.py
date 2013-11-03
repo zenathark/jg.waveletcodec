@@ -9,8 +9,10 @@
 
 import numpy as np
 import waveletcodec.tools as tools
-from waveletcodec.lwt import CDF97
-from waveletcodec.lwt import icdf97
+import waveletcodec.lwt as lwt
+import cv2
+
+CDF97 = 1
 
 
 class WCSet(np.ndarray):
@@ -75,3 +77,60 @@ class WCSet(np.ndarray):
             raise AttributeError(msg)
         if self.filter is CDF97:
             return icdf97(self)
+
+    def as_image(self):
+        dc_rows, dc_cols = self.shape
+        dc_rows //= 2 ** self.level
+        dc_cols //= 2 ** self.level
+        dc = self.copy()
+        ac = dc[:dc_rows,:dc_cols].copy()
+        dc[:dc_rows, :dc_cols] = 0
+        ac = tools.normalize(ac, upper_bound=255, dtype=np.uint8)
+        dc = np.abs(dc)
+        dc = tools.normalize(dc, upper_bound=255, dtype=np.uint8)
+        #ac = cv2.equalizeHist(ac)
+        dc = cv2.equalizeHist(dc)
+        dc[:dc_rows, :dc_cols] = ac
+        return dc
+
+
+_CDF97 = lwt.FilterBank(
+    scale=1 / 1.149604398,
+    update=[-0.05298011854, 0.4435068522],
+    predict=[-1.586134342, 0.8829110762]
+)
+
+
+def cdf97(signal, level=1):
+    """Calculate the Wavelet Transform of the signal using the CDF97 wavelet.
+
+    This method calculates the LWT of the signal given using the
+    Cohen-Daubechies-Feauveau wavelet using a filter bank of size 9,7
+
+    Args:
+        signal a 1D or 2D numpy.array instance
+
+    Returns:
+        An instance of Wavelet that holds the coefficients of the transform
+
+    """
+    coeff = _CDF97.forward(signal, level)
+    wavelet = WCSet(coeff, level, CDF97)
+    return wavelet
+
+
+def icdf97(wavelet):
+    """Calculate the inverse Wavelet Transform using the CDF97 wavelet.
+
+    This method calculates the iLWT of the wavelet given using the
+    Cohen-Daubechies-Feauveau wavelet using a filter bank of size 9,7
+
+    Args:
+        wavelet a 1D or 2D Wavelet instance
+
+    Returns:
+        An instance of numpy.ndarray that holds the reconstructed signal
+
+    """
+    signal = _CDF97.inverse(wavelet, wavelet.level)
+    return signal

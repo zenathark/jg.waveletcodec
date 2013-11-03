@@ -9,7 +9,6 @@
 from __future__ import division
 
 import numpy as np
-import waveletcodec.wave as wv
 import waveletcodec.tools as tl
 
 CDF97 = 1
@@ -41,6 +40,55 @@ class FilterBank(object):
         self._predict = predict
         self._length = len(update)
 
+    def forward(self, signal, level):
+        """Calculate the forward LWT.
+
+        This method calculate the forward lifting wavelet transform.
+
+        Args:
+            signal (numpy.ndarray): A one or two dimentional signal
+            level (int): the decomposition level for the transform
+
+        Return:
+            A numpy.ndarray instance that contains the transform coefficients
+
+        Raises:
+            AttributeError
+
+        """
+        tl.check_ndarray(signal)
+        if signal.ndim is 1:
+            return self._forward_n(signal, level)
+        elif signal.ndim is 2:
+            return self._forward2D_n(signal, level)
+        else:
+            raise AttributeError("Dimension not supported %d" % signal.ndim)
+
+    def inverse(self, wavelet, level):
+        """Calculate the inverse LWT.
+
+        This method calculate the inverse lifting wavelet transform.
+
+        Args:
+            wavelet (numpy.ndarray): A one or two dimentional wavelet
+            coefficient matrix
+            level (int): the decomposition level for the transform
+
+        Return:
+            A numpy.ndarray instance that contains the reconstructed signal
+
+        Raises:
+            AttributeError
+
+        """
+        tl.check_ndarray(wavelet)
+        if wavelet.ndim is 1:
+            return self._inverse_n(wavelet, level)
+        elif wavelet.ndim is 2:
+            return self._inverse2D_n(wavelet, level)
+        else:
+            raise AttributeError("Dimension not supported %d" % wavelet.ndim)
+
     def _forward_n(self, signal, level):
         """Return the standard n level wavelet transform on 1D."""
         end = signal.shape[0]
@@ -53,8 +101,11 @@ class FilterBank(object):
         """Return the standard n level wavelet transform on 2D."""
         erows = signal.shape[0]
         ecols = signal.shape[1]
+        zignal = np.zeros(signal.shape, dtype = np.float64)
+        zignal[:,:] = signal[:,:]
+        signal = zignal
         for _ in range(level):
-            signal[:erows, :ecols] = self._forward2d(signal[:erows, :ecols])
+            signal[:erows, :ecols] = self._forward2D(signal[:erows, :ecols])
             erows //= 2
             ecols //= 2
         return signal
@@ -73,7 +124,7 @@ class FilterBank(object):
         erows = wavelet.shape[0]
         ecols = wavelet.shape[1]
         for _ in range(level):
-            wavelet[:erows, :ecols] = self._forward2d(wavelet[:erows, :ecols])
+            wavelet[:erows, :ecols] = self._inverse2D(wavelet[:erows, :ecols])
             erows //= 2
             ecols //= 2
         return wavelet
@@ -94,6 +145,8 @@ class FilterBank(object):
             default data type is numpy.float64
 
         """
+        signal = signal.copy()
+        signal = signal.astype(np.float64)
         for i in np.arange(0, self._length):
             #predict
             signal[1:-1:2] += self._predict[i] * (signal[:-2:2] + signal[2::2])
@@ -120,20 +173,22 @@ class FilterBank(object):
             A one dimentional instance of a numpy.array
 
         """
-
+        wavelet = wavelet.copy()
         #undo scale
         wavelet = _unsort(wavelet)
         wavelet[:2] *= (1 / self._scale)
         wavelet[1::2] /= (1 / self._scale)
         for i in np.arange(0, self._length):
             #Undo update
-            wavelet[2::2] += self._update[self._length - i - 1] * \
+            wavelet[2::2] += -1 * self._update[self._length - i - 1] * \
                 (wavelet[1:-1:2] + wavelet[3::2])
-            wavelet[0] += 2 * self._update[i] * wavelet[1]
+            wavelet[0] += 2 * -1 * self._update[self._length - i - 1] * \
+                wavelet[1]
             #Undo predict
-            wavelet[1:-1:2] += self._predict[self._length - i - 1] * \
+            wavelet[1:-1:2] += -1 * self._predict[self._length - i - 1] * \
                 (wavelet[:-2:2] + wavelet[2::2])
-            wavelet[-1] += 2 * self._predict[i] * wavelet[-2]
+            wavelet[-1] += 2 * -1 * self._predict[self._length - i - 1] * \
+                wavelet[-2]
         return wavelet
 
     def _forward2D(self, signal):
@@ -152,20 +207,23 @@ class FilterBank(object):
             default data type is numpy.float64
 
         """
-        for i in np.arange(0, self._length):
-            #predict
-            signal[:, 1:-1:2] += self._predict[i] * \
-                (signal[:, :-2:2] + signal[:, 2::2])
-            signal[:, -1] += 2 * self._predict[i] * signal[:, -2]
-            #update
-            signal[:, 2::2] += self._update[i] * \
-                (signal[:, 1:-1:2] + signal[:, 3::2])
-            signal[:, 0] += 2 * self._update[i] * signal[:, 1]
-        #scale
-        signal[:, :2] *= self._scale
-        signal[:, 1::2] /= self._scale
-        #sort lazy wavelet
-        signal = _sort2D(signal)
+        signal = signal.copy()
+        for _ in [0, 1]:
+            for i in np.arange(0, self._length):
+                #predict
+                signal[:, 1:-1:2] += self._predict[i] * \
+                    (signal[:, :-2:2] + signal[:, 2::2])
+                signal[:, -1] += 2 * self._predict[i] * signal[:, -2]
+                #update
+                signal[:, 2::2] += self._update[i] * \
+                    (signal[:, 1:-1:2] + signal[:, 3::2])
+                signal[:, 0] += 2 * self._update[i] * signal[:, 1]
+            #scale
+            signal[:, :2] *= self._scale
+            signal[:, 1::2] /= self._scale
+            #sort lazy wavelet
+            signal = _sort2D(signal)
+            signal = signal.T
         return signal
 
     def _inverse2D(self, wavelet):
@@ -180,20 +238,24 @@ class FilterBank(object):
             A two dimentional instance of a numpy.array
 
         """
-
-        #undo scale
-        wavelet = _unsort2D(wavelet)
-        wavelet[:, :2] *= (1 / self._scale)
-        wavelet[:, 1::2] /= (1 / self._scale)
-        for i in np.arange(0, self._length):
-            #Undo update
-            wavelet[:, 2::2] += self._update[self._length - i - 1] * \
-                (wavelet[:, 1:-1:2] + wavelet[:, 3::2])
-            wavelet[:, 0] += 2 * self._update[i] * wavelet[:, 1]
-            #Undo predict
-            wavelet[:, 1:-1:2] += self._predict[self._length - i - 1] * \
-                (wavelet[:, :-2:2] + wavelet[:, 2::2])
-            wavelet[:, -1] += 2 * self._predict[i] * wavelet[:, -2]
+        wavelet = wavelet.copy()
+        for _ in [0, 1]:
+            #undo scale
+            wavelet = _unsort2D(wavelet)
+            wavelet[:, :2] *= (1 / self._scale)
+            wavelet[:, 1::2] /= (1 / self._scale)
+            for i in np.arange(0, self._length):
+                #Undo update
+                wavelet[:, 2::2] += -1 * self._update[self._length - i - 1] * \
+                    (wavelet[:, 1:-1:2] + wavelet[:, 3::2])
+                wavelet[:, 0] += 2 * -1 * self._update[self._length - i - 1] *\
+                    wavelet[:, 1]
+                #Undo predict
+                wavelet[:, 1:-1:2] += -1 * self._predict[self._length - i - 1]\
+                    * (wavelet[:, :-2:2] + wavelet[:, 2::2])
+                wavelet[:, -1] += 2 * -1 * self._predict[self._length - i - 1]\
+                    * wavelet[:, -2]
+            wavelet = wavelet.T
         return wavelet
 
 
@@ -213,7 +275,7 @@ def _sort(signal):
     """
 
     to = signal.shape[0]
-    for i in range(1, to / 2 + 1, 1):
+    for i in range(1, to // 2 + 1, 1):
         temp = signal[i].copy()
         signal[i:to - 1] = signal[i + 1:to]
         signal[-1] = temp
@@ -231,7 +293,7 @@ def _unsort(signal):
 
     """
     to = signal.shape[0]
-    for i in range(to / 2, 0, -1):
+    for i in range(to // 2, 0, -1):
         temp = signal[-1].copy()
         signal[i + 1:] = signal[i:-1]
         signal[i] = temp
@@ -249,7 +311,7 @@ def _sort2D(signal):
 
     """
     to = signal.shape[1]
-    for i in range(1, to / 2 + 1, 1):
+    for i in range(1, to // 2 + 1, 1):
         temp = signal[:, i].copy()
         signal[:, i:to - 1] = signal[:, i + 1:to]
         signal[:, -1] = temp
@@ -271,51 +333,12 @@ def _unsort2D(signal):
 
     """
     to = signal.shape[1]
-    for i in range(to / 2, 0, -1):
+    for i in range(to // 2, 0, -1):
         temp = signal[:, -1].copy()
         signal[:, i + 1:] = signal[:, i:-1]
         signal[:, i] = temp
     return signal
 
-_CDF97 = FilterBank(
-    scale=1 / 1.149604398,
-    update=[-0.05298011854, 0.4435068522],
-    predict=[-1.586134342, 0.8829110762]
-)
-
-
-def cdf97(signal, level=1):
-    """Calculate the Wavelet Transform of the signal using the CDF97 wavelet.
-
-    This method calculates the LWT of the signal given using the
-    Cohen-Daubechies-Feauveau wavelet using a filter bank of size 9,7
-
-    Args:
-        signal a 1D or 2D numpy.array instance
-
-    Returns:
-        An instance of Wavelet that holds the coefficients of the transform
-
-    """
-
-    return _CDF97._forward2D(signal)
-
-
-def icdf97(wavelet):
-    """Calculate the inverse Wavelet Transform using the CDF97 wavelet.
-
-    This method calculates the iLWT of the wavelet given using the
-    Cohen-Daubechies-Feauveau wavelet using a filter bank of size 9,7
-
-    Args:
-        wavelet a 1D or 2D Wavelet instance
-
-    Returns:
-        An instance of numpy.ndarray that holds the reconstructed signal
-
-    """
-
-    return _CDF97._inverse(wavelet)
 # def cdf97(signal, level=1):
 #     tl.check_ndarray(signal)
 #     signal = normal_forward(signal,level,1/1.149604398,(-1.586134342,-0.05298011854,0.8829110762,0.4435068522))
