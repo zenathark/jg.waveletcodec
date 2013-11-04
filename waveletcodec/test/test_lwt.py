@@ -30,7 +30,7 @@ class TestLWT(unittest.TestCase):
                                       "inverse wavelet failed")
 
     def test_forward_inverse2D(self):
-        signal = np.ones((2 ** 4, 2**4))
+        signal = np.ones((2 ** 4, 2 ** 4))
         wavelet = wave._CDF97._forward2D(signal)
         isignal = wave._CDF97._inverse2D(wavelet)
         npt.assert_array_almost_equal(signal, isignal, 6,
@@ -44,7 +44,7 @@ class TestLWT(unittest.TestCase):
                                       "inverse wavelet failed")
 
     def test_forward_inverse2D_n(self):
-        signal = np.ones((2 ** 8, 2**8))
+        signal = np.ones((2 ** 8, 2 ** 8))
         wavelet = wave._CDF97._forward2D_n(signal, 3)
         isignal = wave._CDF97._inverse2D_n(wavelet, 3)
         npt.assert_array_almost_equal(signal, isignal, 6,
