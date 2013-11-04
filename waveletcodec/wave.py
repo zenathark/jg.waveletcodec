@@ -1,11 +1,12 @@
-"""Wavelet definition.
+"""Represent a Wavelet Coefficient Set.
 
-.. module:: wave
+.. module::wave
    :platform: Unix, Windows
 
 .. modelauthor:: Juan C Galan-Hernandez <jcgalanh@gmail.com>
 
 """
+
 
 import numpy as np
 import waveletcodec.tools as tools
@@ -83,7 +84,7 @@ class WCSet(np.ndarray):
         dc_rows //= 2 ** self.level
         dc_cols //= 2 ** self.level
         dc = self.copy()
-        ac = dc[:dc_rows,:dc_cols].copy()
+        ac = dc[:dc_rows, :dc_cols].copy()
         dc[:dc_rows, :dc_cols] = 0
         ac = tools.normalize(ac, upper_bound=255, dtype=np.uint8)
         dc = np.abs(dc)
