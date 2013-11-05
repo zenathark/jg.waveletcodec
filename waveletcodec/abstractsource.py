@@ -16,11 +16,8 @@ class AbstractVideoSource(object):
     _header = {}
 
     @abc.abstractmethod
-    def get_frame(self, index):
-        """Return a frame at a given position.
-
-        Args:
-            index (int): the index of the wanted frame
+    def next(self):
+        """Return the next frame of the stream.
 
         Returns:
             An instance of waveletcodec.Frame that holds the requested frame
