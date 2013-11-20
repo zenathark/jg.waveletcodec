@@ -1,74 +1,70 @@
-import tools as ts
-import wavelet as wvt
+import waveletcodec.wave as wvt
 import math
 from numpy.numarray.numerictypes import Int
 import numpy as np
+import waveletcodec.rastering as raster
 
 
 class speck(object):
     #wavelet object
     wv = 0
-    #wavelet data
-    dt = 0
     LIS = []
     LSP = []
     nextLIS = []
-    S = []
+    nextLSP = []
     I = []
     n = 0
     output = []
     i_size_partition = 0
     bit_bucket = 0
     log = []
-    debug = True
-    f_log = []
-    logger = None
-    _idx = 0
-    _logidx = 0
-    out_idx = []
+    out_idx = 0
 
     def __init__(self):
         pass
 
     def compress(self, wavelet, bpp):
         self.wv = wavelet
-        self.dt = wavelet.data
-        self.bit_bucket = bpp * self.wv.rows * self.wv.cols
+        self.bit_bucket = bpp * self.wv.shape[0] * self.wv.shape[1]
         self.initialization()
         wise_bit = self.n
         #sorting
         try:
             while self.n > 0:
                 print self.n
-                last_list = self.LIS.tail
-                last_pixel = self.LSP.tail
-                while self.LIS.index != last_list:
-                    l = self.LIS.pop()
+
+                for l in list(self.LIS):
                     self.ProcessS(l)
                 self.ProcessI()
-                self.refinement(last_pixel)
+                self.refinement()
                 self.n -= 1
+                self.LIS += self.nextLIS
+                self.nextLIS = []
+                self.LSP += self.nextLSP
+                self.nextLSP = []
+                self.LIS.sort(reverse=True)
         except EOFError as e:
             print type(e)
-            return [self.wv.cols, self.wv.rows, self.wv.level,
-                    wise_bit, self.output]
-        #print "Elegant!!"
+            return [self.wv.shape[0], self.wv.shape[1], self.wv.level,
+                    wise_bit, self.wv.filter, self.output]
         return [self.wv.cols, self.wv.rows, self.wv.level,
-                wise_bit, self.output]
+                wise_bit, self.wv.filter, self.output]
 
     def initialization(self):
-        X = wvt.get_z_order(self.wv.rows * self.wv.cols)
-        self.LIS = ts.CircularStack(self.wv.cols * self.wv.rows)
-        self.nextLIS = ts.CircularStack(self.wv.cols * self.wv.rows)
-        self.LSP = ts.CircularStack(self.wv.cols * self.wv.rows)
-        s_size = (self.wv.rows * self.wv.cols / 2 ** (2 * self.wv.level))
-        self.S = X[:s_size]
+        X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
+        self.LIS = []   # ts.CircularStack(self.wv.cols * self.wv.rows)
+        self.nextLIS = []  # ts.CircularStack(self.wv.cols * self.wv.rows)
+        self.LSP = []
+        self.nextLSP = []
+        s_size = (self.wv.shape[0] * self.wv.shape[1] /
+                  2 ** (2 * self.wv.level))
+        S = set(X[:s_size])
         del X[:s_size]
-        self.I = X
-        maxs = abs(self.wv.data)
+        self.I = set(X)
+        maxs = abs(self.wv)
         self.n = int(math.log(maxs.max(), 2))
-        self.LIS.push(self.S)
-        self.i_partition_size = (self.wv.rows / 2 ** self.wv.level) ** 2
+        self.LIS.append(S)
+        self.i_partition_size = (self.wv.shape[0] / 2 ** self.wv.level) ** 2
         self.output = [0] * self.bit_bucket
         self.out_idx = 0
 
@@ -76,35 +72,38 @@ class speck(object):
         if len(S) == 0:
             return False
         T = np.array([i.tolist() for i in S])
-        return int((abs(self.dt[T[:, 0], T[:, 1]]).max() >= 2 ** self.n))
+        return int((abs(self.wv[T[:, 0], T[:, 1]]).max() >= 2 ** self.n))
 
     def ProcessS(self, S):
         sn = self.S_n(S)
         self.out(sn)
-        #self.writeLog("ProcessS", "Sn", "S", len(S), sn)
         if sn == 1:
             if len(S) == 1:
-                self.out(self.sign(S))
-                self.push(S)
+                s = S.pop()
+                self.out(self.sign(s))
+                self.push(s)
             else:
                 self.CodeS(S)
+            if S in self.LIS:
+                self.LIS.remove(S)
         else:
-            self.LIS.push(S)
+            if S not in self.LIS:
+                self.nextLIS.append(S)
 
     def CodeS(self, S):
         O = self.splitList(S)
         for o in O:
             sn = self.S_n(o)
             self.out(sn)
-            #self.writeLog("CodeS", "Sn", "S", len(S), sn)
             if sn == 1:
                 if len(o) == 1:
+                    o = o.pop()
                     self.out(self.sign(o))
                     self.push(o)
                 else:
                     self.CodeS(o)
             else:
-                self.LIS.push(o)
+                self.nextLIS.append(o)
         pass
 
     def ProcessI(self):
@@ -121,56 +120,63 @@ class speck(object):
         self.I = part[3]
         self.ProcessI()
 
-    def iInitialization(self, width, height, level, wise_bit):
-        self.wv = wvt.wavelet2D(np.zeros((width, height), dtype=Int), level)
-        self.dt = self.wv.data
+    def iInitialization(self, width, height, level, wise_bit, filter_):
+        self.wv = wvt.WCSet(np.zeros((width, height), dtype=Int), level,
+                            filter=filter_)
         self.wv.level = level
-        X = wvt.get_z_order(self.wv.rows * self.wv.cols)
-        self.LIS = ts.CircularStack(self.wv.cols * self.wv.rows)
-        self.nextLIS = ts.CircularStack(self.wv.cols * self.wv.rows)
-        self.LSP = ts.CircularStack(self.wv.cols * self.wv.rows)
-        s_size = (self.wv.rows * self.wv.cols / 2 ** (2 * self.wv.level))
-        self.S = X[:s_size]
+        X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
+        self.LIS = []
+        self.nextLIS = []
+        self.LSP = []
+        self.nextLSP = []
+        s_size = (self.wv.shape[0] * self.wv.shape[1] /
+                  2 ** (2 * self.wv.level))
+        S = set(X[:s_size])
         del X[:s_size]
-        self.I = X
+        self.I = set(X)
         self.n = wise_bit
-        self.LIS.push(self.S)
-        self.i_partition_size = (self.wv.rows / 2 ** self.wv.level) ** 2
-        self._idx = 0
-        self._logidx = 0
+        self.LIS.append(S)
+        self.i_partition_size = (self.wv.shape[0] / 2 ** self.wv.level) ** 2
 
-    def expand(self, stream, width, height, level, wise_bit):
-        self.iInitialization(width, height, level, wise_bit)
+    def expand(self, stream, width, height, level, wise_bit, filter_):
+        self.iInitialization(width, height, level, wise_bit, filter_)
         self.output = stream
         #sorting
         try:
             while self.n > 0:
                 print self.n
-                last_list = self.LIS.tail
-                last_pixel = self.LSP.tail
-                while self.LIS.index != last_list:
+
+                for l in list(self.LIS):
                     l = self.LIS.pop()
                     self.iProcessS(l)
                 self.iProcessI()
-                self.iRefinement(last_pixel)
+                self.iRefinement()
                 self.n -= 1
+                self.LIS += self.nextLIS
+                self.LSP += self.nextLSP
+                self.nextLSP = []
+                self.nextLSP = []
+                self.LIS.sort(reverse=True)
         except EOFError as e:
             print type(e)
             return self.wv
-        #print "Elegant!!"
         return self.wv
 
     def iProcessS(self, S):
         sn = self.read()
         if sn == 1:
             if len(S) == 1:
+                s = S.pop()
                 sg = self.read()
-                self.createCoeff(S[0], sg)
-                self.push(S)
+                self.createCoeff(s, sg)
+                self.push(s)
+                if S in self.LIS:
+                    self.LIS.remove(S)
             else:
                 self.iCodeS(S)
         else:
-            self.LIS.push(S)
+            if S not in self.LIS:
+                self.LIS.append(S)
 
     def iCodeS(self, S):
         O = self.splitList(S)
@@ -178,11 +184,13 @@ class speck(object):
             sn = self.read()
             if sn == 1:
                 if len(o) == 1:
+                    o = o.pop()
                     sg = self.read()
                     self.createCoeff(o[0], sg)
                     self.push(o)
                 else:
                     self.iCodeS(o)
+
             else:
                 self.LIS.push(o)
         pass
@@ -201,19 +209,20 @@ class speck(object):
         self.iProcessI()
 
     def sign(self, S):
-        if self.dt[S[0][0], S[0][1]] >= 0:
+        if self.wv[S[0], S[0]] >= 0:
             return 0
         else:
             return 1
 
     def splitList(self, l, size=0):
+        l = list(l)
         if size == 0:
             if len(l) % 4 != 0:
                 raise IndexError
             size = int(len(l) / 4)
-            return [l[i * size:(i + 1) * size] for i in (0, 1, 2, 3)]
+            return [set(l[i * size:(i + 1) * size]) for i in (0, 1, 2, 3)]
         else:
-            return [l[i * size:(i + 1) * size] for i in (0, 1, 2)] \
+            return [set(l[i * size:(i + 1) * size]) for i in (0, 1, 2)] \
                 + [l[size * 3:]]
 
     def out(self, data):
@@ -230,34 +239,28 @@ class speck(object):
         else:
             raise EOFError
 
-    def refinement(self, end):
-        c = self.LSP.index
-        while c != end:
-            i = self.LSP.data[c]
-            if self.dt[i[0], i[1]] > 0:
-                coeff = self.dt[i[0], i[1]]
+    def refinement(self):
+        for i in self.LSP:
+            if self.wv[i[0], i[1]] > 0:
+                coeff = self.wv[i[0], i[1]]
             else:
-                coeff = abs(self.dt[i[0], i[1]])
+                coeff = abs(self.wv[i[0], i[1]])
             if (coeff & 2 ** self.n) > 0:
                 self.out(1)
             else:
                 self.out(0)
-            c = (c + 1) % self.LSP.size
 
     def iRefinement(self, end):
-        c = self.LSP.index
-        while c != end:
-            i = self.LSP.data[c]
+        for i in self.LSP:
             if (self.read()) > 0:
-                if self.dt[i[0], i[1]] > 0:
-                    self.dt[i[0], i[1]] |= 2 ** self.n
+                if self.wv[i[0], i[1]] > 0:
+                    self.wv[i[0], i[1]] |= 2 ** self.n
                 else:
-                    self.dt[i[0], i[1]] = (abs(self.dt[i[0], i[1]])
+                    self.wv[i[0], i[1]] = (abs(self.wv[i[0], i[1]])
                                            | 2 ** self.n) * -1
-            c = (c + 1) % self.LSP.size
 
     def push(self, data):
-        self.LSP.push(data[0])
+        self.nextLSP.append(data)
 
     def createCoeff(self, coords, sg, wv=None):
         if wv is None:
