@@ -7,12 +7,15 @@
 
 """
 
-import numpy as np
+import pylab as np
 import waveletcodec.tools as tools
 import waveletcodec.lwt as lwt
 import cv2
 
+#Constant Section
 CDF97 = 1
+
+#End
 
 
 class WCSet(np.ndarray):
