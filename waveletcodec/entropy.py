@@ -85,7 +85,7 @@ class barithmeticb(object):
     _scale = 0
 
     def __init__(self, bit_size=16):
-        super(arithmeticb, self).__init__()
+        super(barithmeticb, self).__init__()
         self._bit_size = bit_size
         self._scale = 2 ** self._bit_size - 1
 
@@ -96,7 +96,7 @@ class barithmeticb(object):
         self._buff = 0
         self._output = []
         #calculate frequency of 0
-        x = 1 - sum(data) / len(data) * self._scale
+        x = int((1 - sum(data) / len(data)) * self._scale)
         self._p = [(0, x), (x, self._scale)]
 
     def encode(self, data):
@@ -104,25 +104,35 @@ class barithmeticb(object):
         for i in data:
             l_i, h_i = self._p[i]
             d = self._h - self._l
-            self._h = self._l + d / self._scale * h_i
-            self._l = self._l + d / self._scale * l_i
+            self._h = int(self._l + d / self._scale * h_i)
+            self._l = int(self._l + d / self._scale * l_i)
             self._check_underflow()
-            print "l:%f h:%f" % (self._l, self._h)
+            print "l:%d h:%d" % (self._l, self._h)
+        self._output += [i for i in bin(self._l)[2:]]
         r = {"payload": self._l, "model": self._p}
         return r
 
     def _check_overflow(self):
         MSB = 1 << (self._scale - 1)
-        if self._h & MSB is 1 and self._l & MSB is 1:
-            self._output.append(1)
+        if self._h & MSB == self._l & MSB:
+            self._output.append(self._h & MSB)
             for i in range(self._underflow_bits):
-                self._output.append(0)
-                self._shift()
+                self._output.append(~(self._h & MSB) &
+                                    (2 ** self._bit_size - 1))
+            self._shift()
         else:
-            MSB = 1 << (self._scale << 2)
-            if self._h & MSB is 1 and self._l & MSB is 0:
-                self._underflow_bits += 1
-                self._l &=
+            self._check_underflow()
+
+    def _check_underflow(self):
+        MSB = 1 << (self._bit_size << 2)
+        if self._h & MSB > 1 and self._l & MSB == 0:
+            self._underflow_bits += 1
+            low_mask = ((1 << self._bit_size - 1) |
+                        (1 << self._bit_size - 2))
+            low_mask = ~low_mask & 2 ** self._bit_size - 1
+            self._l &= low_mask
+            self._h |= (1 << self._bit_size - 1)
+            self._shift()
 
     def _shift(self):
         self._l <<= 1
