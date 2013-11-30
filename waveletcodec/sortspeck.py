@@ -1,3 +1,4 @@
+
 import waveletcodec.wave as wvt
 import math
 from numpy.numarray.numerictypes import Int
@@ -17,8 +18,6 @@ class speck(object):
     output = []
     i_size_partition = 0
     bit_bucket = 0
-    log = []
-    out_idx = 0
 
     def __init__(self):
         pass
@@ -264,12 +263,8 @@ class speck(object):
 
     def createCoeff(self, coords, sg, wv=None):
         if wv is None:
-            self.dt[coords[0], coords[1]] = (2 ** self.n) * \
+            self.wv[coords[0], coords[1]] = (2 ** self.n) * \
                 ((sg * 2 - 1) * -1)
-
-    def writeLog(self, method, reason, obj, size, value):
-        if self.debug:
-            self.log += [method, reason, obj, size, value]
 
 
 class fv_speck(speck):
