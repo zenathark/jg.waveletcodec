@@ -9,6 +9,7 @@
 
 from __future__ import division
 import itertools as it
+import collections as cl
 
 
 class arithmeticb(object):
@@ -83,14 +84,20 @@ class barithmeticb(object):
     _p = []
     _bit_size = 0
     _scale = 0
+    _sigma = []
+    _model = {}
 
-    def __init__(self, bit_size=16):
+    def __init__(self, sigma, bit_size=16, **kargs):
         super(barithmeticb, self).__init__()
         self._bit_size = bit_size
+        self._sigma = sigma
         self._scale = 2 ** self._bit_size - 1
+        if 'model' in kargs:
+            self._model = kargs['model']
+        else:
+            self._model = None
 
     def _initialize(self, data):
-        self._ctr = 0
         self._l = 0
         self._h = self._scale
         self._buff = 0
@@ -98,8 +105,11 @@ class barithmeticb(object):
         #calculate frequency of 0
         x = int((1 - sum(data) / len(data)) * self._scale)
         self._p = [(0, x), (x, self._scale)]
+        if self._model is None:
+            self._calculate_model(data)
 
     def encode(self, data):
+        """ given list using arithmetic encoding."""
         self._initialize(data)
         for i in data:
             l_i, h_i = self._p[i]
@@ -108,17 +118,28 @@ class barithmeticb(object):
             self._l = int(self._l + d / self._scale * l_i)
             self._check_underflow()
             print "l:%d h:%d" % (self._l, self._h)
-        self._output += [i for i in bin(self._l)[2:]]
+        self._output = [i for i in bin(self._l)[2:]] + self._output
         r = {"payload": self._l, "model": self._p}
         return r
+
+    def _calculate_model(self, data):
+        self._model = cl.OrderedDict()
+        for i in self._sigma:
+            self._model[i] = data.count(i)
+
+    def _calculate_range(self, s, data):
+        percent = self._model[s] / data
+        l_s = self._bit_size
+
 
     def _check_overflow(self):
         MSB = 1 << (self._scale - 1)
         if self._h & MSB == self._l & MSB:
-            self._output.append(self._h & MSB)
-            for i in range(self._underflow_bits):
-                self._output.append(~(self._h & MSB) &
+            self._output.insert(0, self._h & MSB)
+            for _ in range(self._underflow_bits):
+                self._output.intert(0, ~(self._h & MSB) &
                                     (2 ** self._bit_size - 1))
+            self._underflow_bits = 0
             self._shift()
         else:
             self._check_underflow()
