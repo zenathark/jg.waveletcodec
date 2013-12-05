@@ -81,10 +81,10 @@ class barithmeticb(object):
     _h = 1
     _buff = 0
     _output = []
-    _p = []
     _bit_size = 0
     _scale = 0
     _sigma = []
+    _frequency = {}
     _model = {}
 
     def __init__(self, sigma, bit_size=16, **kargs):
@@ -103,8 +103,6 @@ class barithmeticb(object):
         self._buff = 0
         self._output = []
         #calculate frequency of 0
-        x = int((1 - sum(data) / len(data)) * self._scale)
-        self._p = [(0, x), (x, self._scale)]
         if self._model is None:
             self._calculate_model(data)
 
@@ -112,32 +110,34 @@ class barithmeticb(object):
         """ given list using arithmetic encoding."""
         self._initialize(data)
         for i in data:
-            l_i, h_i = self._p[i]
+            l_i, h_i = self._model[i]
             d = self._h - self._l
             self._h = int(self._l + d / self._scale * h_i)
             self._l = int(self._l + d / self._scale * l_i)
-            self._check_underflow()
+            self._check_overflow()
             print "l:%d h:%d" % (self._l, self._h)
-        self._output = [i for i in bin(self._l)[2:]] + self._output
-        r = {"payload": self._l, "model": self._p}
+        self._output = [int(i) for i in bin(self._l)[2:]] + self._output
+        r = {"payload": self._output, "model": self._model}
         return r
 
     def _calculate_model(self, data):
         self._model = cl.OrderedDict()
+        accum = 0
         for i in self._sigma:
-            self._model[i] = data.count(i)
-
-    def _calculate_range(self, s, data):
-        percent = self._model[s] / data
-        l_s = self._bit_size
-
+            self._frequency[i] = data.count(i)
+            p = (self._frequency[i] / len(data))
+            p *= 2 ** self._bit_size - 1
+            p = int(p)
+            self._model[i] = (accum, accum + p)
+            accum += p
 
     def _check_overflow(self):
-        MSB = 1 << (self._scale - 1)
+        MSB = 1 << (self._bit_size - 1)
         if self._h & MSB == self._l & MSB:
-            self._output.insert(0, self._h & MSB)
+            self._output.insert(0, int((self._h & MSB) > 0))
             for _ in range(self._underflow_bits):
-                self._output.intert(0, ~(self._h & MSB) &
+                self._output.insert(0, ~(self._h & MSB) &
+                                    (2 ** self._bit_size - 1) >>
                                     (2 ** self._bit_size - 1))
             self._underflow_bits = 0
             self._shift()
@@ -145,7 +145,7 @@ class barithmeticb(object):
             self._check_underflow()
 
     def _check_underflow(self):
-        MSB = 1 << (self._bit_size << 2)
+        MSB = 1 << (self._bit_size - 2)
         if self._h & MSB > 1 and self._l & MSB == 0:
             self._underflow_bits += 1
             low_mask = ((1 << self._bit_size - 1) |
@@ -158,6 +158,8 @@ class barithmeticb(object):
     def _shift(self):
         self._l <<= 1
         self._h <<= 1
+        self._l &= 2 ** self._bit_size - 1
+        self._h &= 2 ** self._bit_size - 1
         self._h |= 1
 
     def _dinitialize(self):
