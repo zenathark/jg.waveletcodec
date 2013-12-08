@@ -85,7 +85,7 @@ class barithmeticb(object):
     _scale = 0
     _sigma = []
     _frequency = {}
-    _model = {}
+    _accum_freq = {}
 
     def __init__(self, sigma, bit_size=16, **kargs):
         super(barithmeticb, self).__init__()
@@ -110,7 +110,7 @@ class barithmeticb(object):
         """ given list using arithmetic encoding."""
         self._initialize(data)
         for i in data:
-            l_i, h_i = self._model[i]
+            l_i, h_i = self._accum_freq[i]
             d = self._h - self._l
             self._h = int(self._l + d / self._scale * h_i)
             self._l = int(self._l + d / self._scale * l_i)
@@ -120,16 +120,16 @@ class barithmeticb(object):
         r = {"payload": self._output, "model": self._model}
         return r
 
-    def _calculate_model(self, data):
-        self._model = cl.OrderedDict()
-        accum = 0
+    def _calculate_static_frequency(self, data):
         for i in self._sigma:
             self._frequency[i] = data.count(i)
-            p = (self._frequency[i] / len(data))
-            p *= 2 ** self._bit_size - 1
-            p = int(p)
-            self._model[i] = (accum, accum + p)
-            accum += p
+
+    def _calculate_accum_freq(self, data):
+        self._accum_freq = cl.OrderedDict()
+        accum = 0
+        for i in self._sigma:
+            self._accum_freql[i] = (accum, accum + self._frequency[i])
+            accum += self._frequency[i]
 
     def _check_overflow(self):
         MSB = 1 << (self._bit_size - 1)
