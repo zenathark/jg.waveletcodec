@@ -20,7 +20,7 @@ class TestFrame(unittest.TestCase):
         # payload = list(np.random.random_integers(0, 1, 3))
         sigma = ['S', 'W', 'I', 'M', ' ']
         payload = list("SWISS MISS")
-        codec = waveletcodec.entropy.barithmeticb(sigma, 8)
+        codec = waveletcodec.entropy.abac(sigma, 8)
         stream = codec.encode(payload)
         print stream
 
