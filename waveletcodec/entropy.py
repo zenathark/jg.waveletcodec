@@ -9,7 +9,6 @@
 
 from __future__ import division
 import itertools as it
-import collections as cl
 
 
 class arithmeticb(object):
@@ -84,13 +83,15 @@ class barithmeticb(object):
     _bit_size = 0
     _scale = 0
     _sigma = []
-    _frequency = {}
-    _accum_freq = {}
+    _idx = {}
+    _frequency = []
+    _accum_freq = []
 
     def __init__(self, sigma, bit_size=16, **kargs):
         super(barithmeticb, self).__init__()
         self._bit_size = bit_size
         self._sigma = sigma
+        self._idx = dict([i for i in it.izip(sigma, range(len(sigma)))])
         self._scale = 2 ** self._bit_size - 1
         if 'model' in kargs:
             self._model = kargs['model']
@@ -103,57 +104,65 @@ class barithmeticb(object):
         self._buff = 0
         self._output = []
         #calculate frequency of 0
-        if self._model is None:
-            self._calculate_model(data)
+        self._calculate_static_frequency(data)
+        self._calculate_accum_freq(data)
 
     def encode(self, data):
         """ given list using arithmetic encoding."""
         self._initialize(data)
         for i in data:
-            l_i, h_i = self._accum_freq[i]
+            l_i = self._accum_freq[self._idx[i] - 1]
+            h_i = self._accum_freq[self._idx[i]]
             d = self._h - self._l
-            self._h = int(self._l + d / self._scale * h_i)
-            self._l = int(self._l + d / self._scale * l_i)
-            self._check_overflow()
+            self._h = int(self._l + d * (h_i / self._scale))
+            self._l = int(self._l + d * (l_i / self._scale))
+            while self._check_overflow():
+                pass
+            while self._check_underflow():
+                pass
             print "l:%d h:%d" % (self._l, self._h)
-        self._output = [int(i) for i in bin(self._l)[2:]] + self._output
+        self._output += [int(i) for i in bin(self._l)[2:]]
         r = {"payload": self._output, "model": self._model}
         return r
 
     def _calculate_static_frequency(self, data):
+        self._frequency = [0] * (len(self._sigma))
         for i in self._sigma:
-            self._frequency[i] = data.count(i)
+            self._frequency[self._idx[i]] = data.count(i)
 
     def _calculate_accum_freq(self, data):
-        self._accum_freq = cl.OrderedDict()
+        self._accum_freq = [0] * (len(self._sigma) + 1)
+        self._accum_freq[-1] = 0
         accum = 0
         for i in self._sigma:
-            self._accum_freql[i] = (accum, accum + self._frequency[i])
-            accum += self._frequency[i]
+            self._accum_freq[self._idx[i]] = (accum +
+                                              self._frequency[self._idx[i]])
+            accum += self._frequency[self._idx[i]]
+        self._scale = accum
 
     def _check_overflow(self):
         MSB = 1 << (self._bit_size - 1)
         if self._h & MSB == self._l & MSB:
-            self._output.insert(0, int((self._h & MSB) > 0))
             for _ in range(self._underflow_bits):
-                self._output.insert(0, ~(self._h & MSB) &
-                                    (2 ** self._bit_size - 1) >>
-                                    (2 ** self._bit_size - 1))
+                self._output.append(int(not(self._h & MSB > 0)))
+            self._output.append(int((self._h & MSB) > 0))
             self._underflow_bits = 0
             self._shift()
-        else:
-            self._check_underflow()
+            return True
+        return False
 
     def _check_underflow(self):
         MSB = 1 << (self._bit_size - 2)
-        if self._h & MSB > 1 and self._l & MSB == 0:
+        if self._h & MSB == 0 and self._l & MSB > 1:
             self._underflow_bits += 1
             low_mask = ((1 << self._bit_size - 1) |
                         (1 << self._bit_size - 2))
             low_mask = ~low_mask & 2 ** self._bit_size - 1
             self._l &= low_mask
-            self._h |= (1 << self._bit_size - 1)
             self._shift()
+            self._h |= (1 << self._bit_size - 1)
+            return True
+        return False
 
     def _shift(self):
         self._l <<= 1
