@@ -1,3 +1,4 @@
+
 import waveletcodec.wave as wvt
 import math
 from numpy.numarray.numerictypes import Int
@@ -17,9 +18,6 @@ class speck(object):
     output = []
     i_size_partition = 0
     bit_bucket = 0
-    log = []
-    out_idx = 0
-    _idx = 0
 
     def __init__(self):
         pass
@@ -30,17 +28,9 @@ class speck(object):
         self.initialization()
         wise_bit = self.n
         #sorting
-        result = {
-            'rows': self.wv.shape[0],
-            'cols': self.wv.shape[1],
-            'level': self.wv.level,
-            'wise_bit': wise_bit,
-            'filter': self.wv.filter,
-        }
         try:
             while self.n > 0:
                 print self.n
-                print self.out_idx
 
                 for l in list(self.LIS):
                     self.ProcessS(l)
@@ -52,11 +42,12 @@ class speck(object):
                 self.LSP += self.nextLSP
                 self.nextLSP = []
                 self.LIS.sort(reverse=True)
-        except EOFError:
-            pass
-        result['payload'] = self.output
-        self.f.close()
-        return result
+        except EOFError as e:
+            print type(e)
+            return [self.wv.shape[0], self.wv.shape[1], self.wv.level,
+                    wise_bit, self.wv.filter, self.output]
+        return [self.wv.cols, self.wv.rows, self.wv.level,
+                wise_bit, self.wv.filter, self.output]
 
     def initialization(self):
         X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
@@ -75,7 +66,6 @@ class speck(object):
         self.i_partition_size = (self.wv.shape[0] / 2 ** self.wv.level) ** 2
         self.output = [0] * self.bit_bucket
         self.out_idx = 0
-        self.f = open("encode", "w")
 
     def S_n(self, S):
         if len(S) == 0:
@@ -84,7 +74,6 @@ class speck(object):
         return int((abs(self.wv[T[:, 0], T[:, 1]]).max() >= 2 ** self.n))
 
     def ProcessS(self, S):
-        self.f.write("0-%d " % self.out_idx)
         sn = self.S_n(S)
         self.out(sn)
         if sn == 1:
@@ -101,7 +90,6 @@ class speck(object):
                 self.nextLIS.append(S)
 
     def CodeS(self, S):
-        self.f.write("1-%d " % self.out_idx)
         O = self.splitList(S)
         for o in O:
             sn = self.S_n(o)
@@ -118,14 +106,12 @@ class speck(object):
         pass
 
     def ProcessI(self):
-        self.f.write("2-%d " % self.out_idx)
         sn = self.S_n(self.I)
         self.out(sn)
         if sn == 1:
             self.CodeI()
 
     def CodeI(self):
-        self.f.write("3-%d " % self.out_idx)
         part = self.splitList(self.I, self.i_partition_size)
         self.i_partition_size = self.i_partition_size * 4
         for i in range(3):
@@ -133,9 +119,9 @@ class speck(object):
         self.I = part[3]
         self.ProcessI()
 
-    def iInitialization(self, width, height, level, filter_, wise_bit):
+    def iInitialization(self, width, height, level, wise_bit, filter_):
         self.wv = wvt.WCSet(np.zeros((width, height), dtype=Int), level,
-                            filter_=filter_)
+                            filter=filter_)
         self.wv.level = level
         X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
         self.LIS = []
@@ -150,19 +136,17 @@ class speck(object):
         self.n = wise_bit
         self.LIS.append(S)
         self.i_partition_size = (self.wv.shape[0] / 2 ** self.wv.level) ** 2
-        self._idx = 0
-        self.f = open("decode", "w")
 
-    def expand(self, stream, width, height, level, filter_, wise_bit):
-        self.iInitialization(width, height, level, filter_, wise_bit)
+    def expand(self, stream, width, height, level, wise_bit, filter_):
+        self.iInitialization(width, height, level, wise_bit, filter_)
         self.output = stream
         #sorting
         try:
             while self.n > 0:
                 print self.n
-                print self._idx
 
                 for l in list(self.LIS):
+                    l = self.LIS.pop()
                     self.iProcessS(l)
                 self.iProcessI()
                 self.iRefinement()
@@ -170,15 +154,14 @@ class speck(object):
                 self.LIS += self.nextLIS
                 self.LSP += self.nextLSP
                 self.nextLSP = []
-                self.nextLIS = []
+                self.nextLSP = []
                 self.LIS.sort(reverse=True)
-        except EOFError:
-            pass
-        self.f.close()
+        except EOFError as e:
+            print type(e)
+            return self.wv
         return self.wv
 
     def iProcessS(self, S):
-        self.f.write("0-%d " % self._idx)
         sn = self.read()
         if sn == 1:
             if len(S) == 1:
@@ -186,16 +169,15 @@ class speck(object):
                 sg = self.read()
                 self.createCoeff(s, sg)
                 self.push(s)
+                if S in self.LIS:
+                    self.LIS.remove(S)
             else:
                 self.iCodeS(S)
-            if S in self.LIS:
-                self.LIS.remove(S)
         else:
             if S not in self.LIS:
-                self.nextLIS.append(S)
+                self.LIS.append(S)
 
     def iCodeS(self, S):
-        self.f.write("1-%d " % self._idx)
         O = self.splitList(S)
         for o in O:
             sn = self.read()
@@ -203,22 +185,21 @@ class speck(object):
                 if len(o) == 1:
                     o = o.pop()
                     sg = self.read()
-                    self.createCoeff(o, sg)
+                    self.createCoeff(o[0], sg)
                     self.push(o)
                 else:
                     self.iCodeS(o)
+
             else:
-                self.nextLIS.append(o)
+                self.LIS.push(o)
         pass
 
     def iProcessI(self):
-        self.f.write("2-%d " % self._idx)
         sn = self.read()
         if sn == 1:
             self.iCodeI()
 
     def iCodeI(self):
-        self.f.write("3-%d " % self._idx)
         part = self.splitList(self.I, self.i_partition_size)
         self.i_partition_size = self.i_partition_size * 4
         for i in range(3):
@@ -268,7 +249,7 @@ class speck(object):
             else:
                 self.out(0)
 
-    def iRefinement(self):
+    def iRefinement(self, end):
         for i in self.LSP:
             if (self.read()) > 0:
                 if self.wv[i[0], i[1]] > 0:
@@ -296,56 +277,58 @@ class fv_speck(speck):
         self.lbpp = lbpp
         self.alpha = alpha
         self.wv = wavelet
+        self.dt = wavelet.data
         self.P = f_center
         self.c = c
         self.gamma = gamma
         self.calculate_fovea_length()
-        r = super(fv_speck, self).compress(self.wv, bpp)
-        r['Lbpp'] = bpp
-        r['lbpp'] = lbpp
-        r['f_center'] = f_center
-        r['c'] = c
-        r['alpha'] = alpha
-        r['gamma'] = gamma
-        return r
+        return super(fv_speck, self).compress(self.wv, bpp)
 
-    def expand(self, stream, width, height, level, filter_,  wise_bit, bpp,
-               lbpp, f_center, alpha, c, gamma):
+    def expand(self, stream, width, height, level, wise_bit, bpp, lbpp,
+               f_center, alpha, c, gamma):
         self.Lbpp = bpp
         self.lbpp = lbpp
         self.alpha = alpha
         self.P = f_center
         self.c = c
-        self.wv = wvt.WCSet(np.zeros((width, height), dtype=Int), level)
+        self.wv = wvt.wavelet2D(np.zeros((width, height), dtype=Int), level)
+        self.dt = self.wv.data
         self.wv.level = level
         self.gamma = gamma
         self.calculate_fovea_length()
         return super(fv_speck, self).expand(stream, width, height, level,
-                                            filter_, wise_bit)
+                                            wise_bit)
 
-    # def refinement(self):
-    #     for i in self.LSP:
-    #         fv = self.calculate_fovea_w(i)
-    #         if fv >= self.get_current_bpp():
-    #             if self.wv[i[0], i[1]] > 0:
-    #                 coeff = self.wv[i[0], i[1]]
-    #             else:
-    #                 coeff = abs(self.wv[i[0], i[1]])
-    #             if (coeff & 2 ** self.n) > 0:
-    #                 self.out(1)
-    #             else:
-    #                 self.out(0)
+    def refinement(self, end):
+        print('iRefinement I' + str(len(self.I)) + ' ' + str(len(self.output)))
+        c = self.LSP.index
+        while c != end:
+            i = self.LSP.data[c]
+            fv = self.calculate_fovea_w(i)
+            if fv >= self.get_current_bpp():
+                if self.dt[i[0], i[1]] > 0:
+                    coeff = self.dt[i[0], i[1]]
+                else:
+                    coeff = abs(self.dt[i[0], i[1]])
+                if (coeff & 2 ** self.n) > 0:
+                    self.out(1)
+                else:
+                    self.out(0)
+            c = (c + 1) % self.LSP.size
 
-    # def iRefinement(self):
-    #     for i in self.LSP:
-    #         fv = self.calculate_fovea_w(i)
-    #         if fv >= (self.get_dec_bpp()):
-    #             if (self.read()) > 0:
-    #                 if self.wv[i[0], i[1]] > 0:
-    #                     self.wv[i[0], i[1]] |= 2 ** self.n
-    #                 else:
-    #                     self.wv[i[0], i[1]] = (abs(self.wv[i[0], i[1]]) |
-    #                                            2 ** self.n) * -1
+    def iRefinement(self, end):
+        c = self.LSP.index
+        while c != end:
+            i = self.LSP.data[c]
+            fv = self.calculate_fovea_w(i)
+            if fv >= (self.get_dec_bpp()):
+                if (self.read()) > 0:
+                    if self.dt[i[0], i[1]] > 0:
+                        self.dt[i[0], i[1]] |= 2 ** self.n
+                    else:
+                        self.dt[i[0], i[1]] = (abs(self.dt[i[0], i[1]]) |
+                                               2 ** self.n) * -1
+            c = (c + 1) % self.LSP.size
 
     def calculate_fovea_w(self, ij):
         try:
@@ -368,14 +351,14 @@ class fv_speck(speck):
             if ij[0] == 0:
                 aprx_level_r = self.wv.level + 1
             else:
-                aprx_level_r = math.ceil(math.log(self.wv.shape[0] /
+                aprx_level_r = math.ceil(math.log(self.wv.rows /
                                                   float(ij[0]), 2))
                 if aprx_level_r > self.wv.level:
                     aprx_level_r = self.wv.level + 1
             if ij[1] == 0:
                 aprx_level_c = self.wv.level + 1
             else:
-                aprx_level_c = math.ceil(math.log(self.wv.shape[0] /
+                aprx_level_c = math.ceil(math.log(self.wv.rows /
                                                   float(ij[1]), 2))
                 if aprx_level_c > self.wv.level:
                     aprx_level_c = self.wv.level + 1
@@ -392,14 +375,14 @@ class fv_speck(speck):
             y = float(self.P[0]) / 2 ** aprx_level
             x = float(self.P[1]) / 2 ** aprx_level
             if aprx_level_r == aprx_level:
-                y += float(self.wv.shape[0]) / 2 ** aprx_level
+                y += float(self.wv.rows) / 2 ** aprx_level
             if aprx_level_c == aprx_level:
-                x += float(self.wv.shape[1]) / 2 ** aprx_level
+                x += float(self.wv.cols) / 2 ** aprx_level
             return (y, x, aprx_level)
 
     def calculate_fovea_length(self):
-        H = self.wv.shape[0]
-        W = self.wv.shape[1]
+        H = self.wv.rows
+        W = self.wv.cols
         k = np.zeros(4)
         k[0] = self.norm(self.P[0], H - self.P[1])
         k[1] = self.norm(W - self.P[0], self.P[1])
@@ -408,23 +391,20 @@ class fv_speck(speck):
         self.fovea_length = k.max()
 
     def printFoveaWindow(self):
-        window = np.zeros((self.wv.shape[0], self.wv.shape[1]))
-        points = self.wv.get_z_order(self.wavelet.shape[0] *
-                                     self.wavelet.shape[1])
+        window = np.zeros((self.wv.rows, self.wv.cols))
+        points = self.wv.get_z_order(self.wavelet.rows * self.wavelet.cols)
         for i in points:
             window[tuple(i)] = self.calculate_fovea_w(i)
         return window
 
     def get_current_bpp(self):
-        # bpp = len(self.output)
-        # bpp /= float(self.wv.shape[0] * self.wv.shape[1])V
-        bpp = self.out_idx
-        bpp /= float(self.wv.shape[0] * self.wv.shape[1])
+        bpp = len(self.output)
+        bpp /= float(self.wv.rows * self.wv.cols)
         return bpp
 
     def get_dec_bpp(self):
         bpp = self._idx
-        bpp /= float(self.wv.shape[0] * self.wv.shape[1])
+        bpp /= float(self.wv.rows * self.wv.cols)
         return bpp
 
     def norm(self, x, y):
