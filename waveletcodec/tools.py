@@ -97,6 +97,28 @@ def zero_padding(signal, squared=True):
     padded_signal[y_0:y_t, x_0:x_t] = signal
     return padded_signal
 
+
+def zero_padding_n(signal, base, squared=True):
+    """Creates a new ndarray that """
+    check_dim(signal, 2)
+    rows, cols = signal.shape
+    pow_rows = int(np.ceil(rows / base))
+    pow_cols = int(np.ceil(cols / base))
+    if squared:
+        if pow_cols > pow_rows:
+            pow_rows = pow_cols
+        else:
+            pow_cols = pow_rows
+    padded_signal = np.zeros((pow_rows * base, pow_cols * base),
+                             dtype=signal.dtype)
+    y_0 = int(((pow_rows * base) - signal.shape[0]) / 2)
+    y_t = y_0 + signal.shape[0]
+    x_0 = int(((pow_cols * base) - signal.shape[1]) / 2)
+    x_t = x_0 + signal.shape[1]
+    padded_signal[y_0:y_t, x_0:x_t] = signal
+    return padded_signal
+
+
 def unpadding(signal, dim):
     y, x = dim
     sy, sx = signal.shape
@@ -169,7 +191,7 @@ def check_dim(data, dim):
         data dimension does not match the desired amount
 
     """
-    _check_ndarray(data)
+    check_ndarray(data)
     if data.ndim is not dim:
         msg = "Argument dimension mistmatch, expected " + dim + " dimensions"
         raise TypeError(msg)
