@@ -57,3 +57,11 @@ class integDCT(object):
         t = self.norm_i_one_ker.T.dot(data).dot(self.norm_i_one_ker)
         t = tls.quantize(t, 1 / self.qs[i], dtype=np.int)
         return t
+
+
+def binarizate(data):
+    output = []
+    for i in np.nditer(data):
+        binary = ([1] * i) + [0]
+        output += binary
+    return output
