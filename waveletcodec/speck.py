@@ -1,8 +1,9 @@
 import tools as ts
-import wavelet as wvt
+import waveletcodec.wave as wvt
 import math
 from numpy.numarray.numerictypes import Int
 import numpy as np
+import waveletcodec.entropy as tpy
 
 
 class speck(object):
@@ -56,6 +57,32 @@ class speck(object):
         return [self.wv.cols, self.wv.rows, self.wv.level,
                 wise_bit, self.output]
 
+    def compress_abac(self, wavelet, bpp):
+        self.wv = wavelet
+        self.dt = wavelet.data
+        self.bit_bucket = bpp * self.wv.rows * self.wv.cols
+        self.initialization()
+        wise_bit = self.n
+        #sorting
+        try:
+            while self.n > 0:
+                print self.n
+                last_list = self.LIS.tail
+                last_pixel = self.LSP.tail
+                while self.LIS.index != last_list:
+                    l = self.LIS.pop()
+                    self.ProcessS(l)
+                self.ProcessI()
+                self.refinement(last_pixel)
+                self.n -= 1
+        except EOFError as e:
+            print type(e)
+            return [self.wv.cols, self.wv.rows, self.wv.level,
+                    wise_bit, self.output]
+        #print "Elegant!!"
+        return [self.wv.cols, self.wv.rows, self.wv.level,
+                wise_bit, self.output]
+
     def initialization(self):
         X = wvt.get_z_order(self.wv.rows * self.wv.cols)
         self.LIS = ts.CircularStack(self.wv.cols * self.wv.rows)
@@ -69,7 +96,7 @@ class speck(object):
         self.n = int(math.log(maxs.max(), 2))
         self.LIS.push(self.S)
         self.i_partition_size = (self.wv.rows / 2 ** self.wv.level) ** 2
-        self.output = [0] * self.bit_bucket
+        self.output = []
         self.out_idx = 0
 
     def S_n(self, S):
@@ -218,7 +245,7 @@ class speck(object):
 
     def out(self, data):
         if self.out_idx < self.bit_bucket:
-            self.output[self.out_idx] = data
+            self.output.append(data)
             self.out_idx += 1
         else:
             raise EOFError
@@ -418,3 +445,48 @@ class fv_speck(speck):
     def powerlaw(self, n):
         return self.c * (1 - ((n - self.alpha) / (1 - self.alpha))) \
             ** self.gamma
+
+
+class ar_speck(speck):
+    _cdc = None
+
+    def __init__(self):
+            pass
+
+    def compress(self, wavelet, bpp):
+        self._cdc = tpy.abac([0, 1])
+        self._cdc._initialize()
+        r = super(ar_speck, self).compress(wavelet, bpp)
+        r['abac'] = self._cdc.length()
+        return r
+
+    def out(self, data):
+        if self.out_idx < self.bit_bucket or \
+           self._cdc.length() < self.bit_bucket:
+            self.output.append(data)
+            self.out_idx += 1
+        else:
+            raise EOFError
+
+
+class ar_fvspeck(fv_speck):
+    _cdc = None
+
+    def __init__(self):
+            pass
+
+    def compress(self, wavelet, bpp, lbpp, f_center, alpha, c, gamma):
+        self._cdc = tpy.abac([0, 1])
+        self._cdc._initialize()
+        r = super(ar_fvspeck, self).compress(
+            wavelet, bpp, lbpp, f_center, alpha, c, gamma)
+        r['abac'] = self._cdc.length()
+        return r
+
+    def out(self, data):
+        if self.out_idx < self.bit_bucket or \
+           self._cdc.length() < self.bit_bucket:
+            self.output.append(data)
+            self.out_idx += 1
+        else:
+            raise EOFError

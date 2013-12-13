@@ -50,18 +50,18 @@ class integDCT(object):
 
     def _dct4x4(self, data, i):
         t = self.norm_one_ker.dot(data).dot(self.norm_one_ker.T)
-        t = tls.quantize(t, self.qs[i], dtype=np.int)
+        t = tls.quantize(t, 1 / self.qs[i], dtype=np.int)
         return t
 
     def _idct4x4(self, data, i):
         t = self.norm_i_one_ker.T.dot(data).dot(self.norm_i_one_ker)
-        t = tls.quantize(t, 1 / self.qs[i], dtype=np.int)
+        t = tls.quantize(t, self.qs[i], dtype=np.int)
         return t
 
 
 def binarizate(data):
     output = []
     for i in np.nditer(data):
-        binary = ([1] * i) + [0]
+        binary = ([1] * int(np.abs(i))) + [0]
         output += binary
     return output

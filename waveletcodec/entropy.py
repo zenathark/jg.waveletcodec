@@ -220,7 +220,7 @@ class abac(object):
         else:
             self._model = None
 
-    def _initialize(self, data):
+    def _initialize(self):
         self._l = 0
         self._h = self._scale
         self._buff = 0
@@ -232,22 +232,28 @@ class abac(object):
 
     def encode(self, data):
         """ given list using arithmetic encoding."""
-        self._initialize(data)
+        self._initialize()
         for i in data:
-            self._frequency[self._idx[i]] += 1
-            self._calculate_accum_freq()
-            l_i = self._accum_freq[self._idx[i] - 1]
-            h_i = self._accum_freq[self._idx[i]]
-            d = self._h - self._l
-            self._h = int(self._l + d * (h_i / self._scale))
-            self._l = int(self._l + d * (l_i / self._scale))
-            while self._check_overflow():
-                pass
-            while self._check_underflow():
-                pass
-            print "l:%d h:%d" % (self._l, self._h)
-        self._output += [int(i) for i in bin(self._l)[2:]]
-        r = {"payload": self._output, "model": self._model}
+            self.push(i)
+            # print "l:%d h:%d" % (self._l, self._h)
+        return self.get_current_stream()
+
+    def push(self, symbol):
+        self._frequency[self._idx[symbol]] += 1
+        self._calculate_accum_freq()
+        l_i = self._accum_freq[self._idx[symbol] - 1]
+        h_i = self._accum_freq[self._idx[symbol]]
+        d = self._h - self._l
+        self._h = int(self._l + d * (h_i / self._scale))
+        self._l = int(self._l + d * (l_i / self._scale))
+        while self._check_overflow():
+            pass
+        while self._check_underflow():
+            pass
+
+    def get_current_stream(self):
+        output = self._output + [int(i) for i in bin(self._l)[2:]]
+        r = {"payload": output, "model": self._model}
         return r
 
     def _calculate_accum_freq(self):
@@ -306,3 +312,6 @@ class abac(object):
                     n = (n - l_i) / d
                     break
         return self._output
+
+    def length(self):
+        return len(self._output)
