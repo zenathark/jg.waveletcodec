@@ -4,6 +4,7 @@ import math
 from numpy.numarray.numerictypes import Int
 import numpy as np
 import waveletcodec.rastering as raster
+import waveletcodec.entropy as tpy
 
 
 class speck(object):
@@ -27,11 +28,11 @@ class speck(object):
         self.bit_bucket = bpp * self.wv.shape[0] * self.wv.shape[1]
         self.initialization()
         wise_bit = self.n
-        #sorting
+        # #sorting
         try:
             while self.n > 0:
                 print self.n
-
+                print "%d-%d:%d" % (bpp, self.out_idx, self.bit_bucket)
                 for l in list(self.LIS):
                     self.ProcessS(l)
                 self.ProcessI()
@@ -42,12 +43,18 @@ class speck(object):
                 self.LSP += self.nextLSP
                 self.nextLSP = []
                 self.LIS.sort(reverse=True)
-        except EOFError as e:
-            print type(e)
-            return [self.wv.shape[0], self.wv.shape[1], self.wv.level,
-                    wise_bit, self.wv.filter, self.output]
-        return [self.wv.cols, self.wv.rows, self.wv.level,
-                wise_bit, self.wv.filter, self.output]
+        except EOFError:
+            pass
+            # print type(e)
+            # return [self.wv.shape[0], self.wv.shape[1], self.wv.level,
+            #         wise_bit, self.wv.filter, self.output]
+        r = {}
+        r['colums'] = self.wv.shape[1]
+        r['rows'] = self.wv.shape[0]
+        r['level'] = self.wv.level
+        r['wisebit'] = wise_bit
+        r['payload'] = self.output
+        return r
 
     def initialization(self):
         X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
@@ -64,8 +71,11 @@ class speck(object):
         self.n = int(math.log(maxs.max(), 2))
         self.LIS.append(S)
         self.i_partition_size = (self.wv.shape[0] / 2 ** self.wv.level) ** 2
-        self.output = [0] * self.bit_bucket
+        self.output = []
         self.out_idx = 0
+        # cheat code
+        self.clone = wvt.WCSet(np.zeros((self.wv.shape), dtype=Int),
+                            4, wvt.CDF97)
 
     def S_n(self, S):
         if len(S) == 0:
@@ -81,6 +91,7 @@ class speck(object):
                 s = S.pop()
                 self.out(self.sign(s))
                 self.push(s)
+                self.createCoeff(s, self.sign(s), self.clone)
             else:
                 self.CodeS(S)
             if S in self.LIS:
@@ -99,6 +110,7 @@ class speck(object):
                     o = o.pop()
                     self.out(self.sign(o))
                     self.push(o)
+                    self.createCoeff(o, self.sign(o), self.clone)
                 else:
                     self.CodeS(o)
             else:
@@ -121,7 +133,7 @@ class speck(object):
 
     def iInitialization(self, width, height, level, wise_bit, filter_):
         self.wv = wvt.WCSet(np.zeros((width, height), dtype=Int), level,
-                            filter=filter_)
+                            filter_=filter_)
         self.wv.level = level
         X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
         self.LIS = []
@@ -136,6 +148,7 @@ class speck(object):
         self.n = wise_bit
         self.LIS.append(S)
         self.i_partition_size = (self.wv.shape[0] / 2 ** self.wv.level) ** 2
+        self._idx = 0
 
     def expand(self, stream, width, height, level, wise_bit, filter_):
         self.iInitialization(width, height, level, wise_bit, filter_)
@@ -144,9 +157,7 @@ class speck(object):
         try:
             while self.n > 0:
                 print self.n
-
                 for l in list(self.LIS):
-                    l = self.LIS.pop()
                     self.iProcessS(l)
                 self.iProcessI()
                 self.iRefinement()
@@ -169,13 +180,13 @@ class speck(object):
                 sg = self.read()
                 self.createCoeff(s, sg)
                 self.push(s)
-                if S in self.LIS:
-                    self.LIS.remove(S)
             else:
                 self.iCodeS(S)
+            if S in self.LIS:
+                self.LIS.remove(S)
         else:
             if S not in self.LIS:
-                self.LIS.append(S)
+                self.nextLIS.append(S)
 
     def iCodeS(self, S):
         O = self.splitList(S)
@@ -185,13 +196,13 @@ class speck(object):
                 if len(o) == 1:
                     o = o.pop()
                     sg = self.read()
-                    self.createCoeff(o[0], sg)
+                    self.createCoeff(o, sg)
                     self.push(o)
                 else:
                     self.iCodeS(o)
 
             else:
-                self.LIS.push(o)
+                self.nextLIS.append(o)
         pass
 
     def iProcessI(self):
@@ -226,7 +237,7 @@ class speck(object):
 
     def out(self, data):
         if self.out_idx < self.bit_bucket:
-            self.output[self.out_idx] = data
+            self.output.append(data)
             self.out_idx += 1
         else:
             raise EOFError
@@ -242,14 +253,17 @@ class speck(object):
         for i in self.LSP:
             if self.wv[i[0], i[1]] > 0:
                 coeff = self.wv[i[0], i[1]]
+                sign = 1
             else:
                 coeff = abs(self.wv[i[0], i[1]])
+                sign = -1
             if (coeff & 2 ** self.n) > 0:
                 self.out(1)
+                self.clone[i[0], i[1]] = (abs(self.clone[i[0], i[1]]) | 2 ** self.n) * sign
             else:
                 self.out(0)
 
-    def iRefinement(self, end):
+    def iRefinement(self):
         for i in self.LSP:
             if (self.read()) > 0:
                 if self.wv[i[0], i[1]] > 0:
@@ -264,6 +278,9 @@ class speck(object):
     def createCoeff(self, coords, sg, wv=None):
         if wv is None:
             self.wv[coords[0], coords[1]] = (2 ** self.n) * \
+                ((sg * 2 - 1) * -1)
+        else:
+            wv[coords[0], coords[1]] = (2 ** self.n) * \
                 ((sg * 2 - 1) * -1)
 
 
@@ -282,7 +299,14 @@ class fv_speck(speck):
         self.c = c
         self.gamma = gamma
         self.calculate_fovea_length()
-        return super(fv_speck, self).compress(self.wv, bpp)
+        r = super(fv_speck, self).compress(self.wv, bpp)
+        r['Lbpp'] = bpp
+        r['lbpp'] = lbpp
+        r['alpha'] = alpha
+        r['center'] = f_center
+        r['c'] = c
+        r['gamma'] = gamma
+        return r
 
     def expand(self, stream, width, height, level, wise_bit, bpp, lbpp,
                f_center, alpha, c, gamma):
@@ -416,3 +440,50 @@ class fv_speck(speck):
     def powerlaw(self, n):
         return self.c * (1 - ((n - self.alpha) / (1 - self.alpha))) \
             ** self.gamma
+
+
+class ar_speck(speck):
+    _cdc = None
+
+    def __init__(self):
+            pass
+
+    def compress(self, wavelet, bpp):
+        self._cdc = tpy.abac([0, 1])
+        self._cdc._initialize()
+        r = super(ar_speck, self).compress(wavelet, bpp)
+        r['abac'] = self._cdc.length()
+        return r
+
+    def out(self, data):
+        if self.out_idx < self.bit_bucket or \
+           self._cdc.length() < self.bit_bucket:
+            self.output.append(data)
+            self._cdc.push(data)
+            self.out_idx += 1
+        else:
+            raise EOFError
+
+
+class ar_fvspeck(fv_speck):
+    _cdc = None
+
+    def __init__(self):
+            pass
+
+    def compress(self, wavelet, bpp, lbpp, f_center, alpha, c, gamma):
+        self._cdc = tpy.abac([0, 1])
+        self._cdc._initialize()
+        r = super(ar_fvspeck, self).compress(
+            wavelet, bpp, lbpp, f_center, alpha, c, gamma)
+        r['abac'] = self._cdc.length()
+        return r
+
+    def out(self, data):
+        if self.out_idx < self.bit_bucket or \
+           self._cdc.length() < self.bit_bucket:
+            self.output.append(data)
+            self._cdc.push(data)
+            self.out_idx += 1
+        else:
+            raise EOFError

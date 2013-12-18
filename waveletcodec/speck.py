@@ -34,7 +34,7 @@ class speck(object):
     def compress(self, wavelet, bpp):
         self.wv = wavelet
         self.dt = wavelet.data
-        self.bit_bucket = bpp * self.wv.rows * self.wv.cols
+        self.bit_bucket = bpp * self.wv.shape[0] * self.wv.shape[1]
         self.initialization()
         wise_bit = self.n
         #sorting
@@ -49,13 +49,19 @@ class speck(object):
                 self.ProcessI()
                 self.refinement(last_pixel)
                 self.n -= 1
-        except EOFError as e:
-            print type(e)
-            return [self.wv.cols, self.wv.rows, self.wv.level,
-                    wise_bit, self.output]
+        except EOFError:
+            #print type(e)
+            #return [self.wv.cols, self.wv.rows, self.wv.level,
+            #        wise_bit, self.output]
+            pass
         #print "Elegant!!"
-        return [self.wv.cols, self.wv.rows, self.wv.level,
-                wise_bit, self.output]
+        r = {}
+        r['colums'] = self.wv.cols
+        r['rows'] = self.wv.rows
+        r['level'] = self.wv.level
+        r['wisebit'] = self.wv.wise_bit
+        r['payload'] = self.output
+        return r
 
     def compress_abac(self, wavelet, bpp):
         self.wv = wavelet
@@ -311,7 +317,14 @@ class fv_speck(speck):
         self.c = c
         self.gamma = gamma
         self.calculate_fovea_length()
-        return super(fv_speck, self).compress(self.wv, bpp)
+        r = super(fv_speck, self).compress(self.wv, bpp)
+        r['Lbpp'] = bpp
+        r['lbpp'] = lbpp
+        r['alpha'] = alpha
+        r['center'] = f_center
+        r['c'] = c
+        r['gamma'] = gamma
+        return r
 
     def expand(self, stream, width, height, level, wise_bit, bpp, lbpp,
                f_center, alpha, c, gamma):

@@ -314,4 +314,4 @@ class abac(object):
         return self._output
 
     def length(self):
-        return len(self._output)
+        return len(self._output) + self._bit_size

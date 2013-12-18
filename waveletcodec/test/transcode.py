@@ -1,13 +1,14 @@
+from __future__ import division
 import cv2
 import os
 import pickle
 import numpy as np
 import waveletcodec.intraframe as intra
-import waveletcodec.speck as sk
-import waveletcodec.lwt as lwt
+import waveletcodec.sortspeck as sk
 import waveletcodec.tools as tls
 import waveletcodec.h264 as h264
 import waveletcodec.entropy as etr
+import waveletcodec.wave as wave
 
 
 class MainHeader(object):
@@ -20,17 +21,25 @@ class IntraHeader(object):
     ext = ".npy"
     search_size = 100
     block_size = 8
+    motionext = ".mvn"
 
 
 class HEVCHeader(object):
     frames = 0
-    qstep = 1020
+    qstep = 40
     ext = ".npy"
     shape = 0
 
 
 class HEVCFrameHeader(object):
     abac_size = 0
+
+
+class SPECKFrameHeader(object):
+    bpp = 0
+    level = 0
+    wavelet = ''
+    shape = 0
 
 
 def split_raw(filename, dest_file):
@@ -77,6 +86,7 @@ def compress_fullsearch(path, dest_path):
                                                8,
                                                100)
         np.save(open(dest_path + str(c) + header.ext, "w"), error)
+        np.save(open(dest_path + str(c) + header.motionext, "w"), mvs)
     header.frames = info.frames
     header.ext = ".npy"
     pickle.dump(header, open(dest_path + "header.dat", "w"))
@@ -155,255 +165,259 @@ def decompress_error_h265(path, dest_path):
         target_file = dest_path + str((c)) + ".npy"
         np.save(open(target_file, "w"), frame)
     pickle.dump(header, open(dest_path + "header.dat", "w"))
-#
-#
-# def decompress_fullsearch(path, dest_path, macroblock_size=8):
-#     if path[-1] != "/":
-#         path += "/"
-#     info = pickle.load(open(path + "info.dat", "r"))
-#     is_key = 0
-#     if not os.path.exists(dest_path):
-#         os.makedirs(dest_path)
-#     for c in range(info.frames):
-#         error = cv2.imread(path + str(c) + ".png",
-#                            cv2.CV_LOAD_IMAGE_GRAYSCALE)
-#         if is_key == 0:
-#             if not cv2.imwrite(dest_path + str(c) + ".png",
-#                                error, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
-#                 print "Failed to create: " + dest_path + str(c) + ".png"
-#             is_key = info.fixed_keyframe - 1
-#             key_frame = error
-#         else:
-#             frame = intraframe.decode_motion_frame(error,
-#                                                    info.motion_vectors[c],
-#                                                    info.macroblock_size,
-#                                                    key_frame)
-#
-#             if not cv2.imwrite(dest_path + str(c) + ".png",
-#                                frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
-#                 print "Failed to create: " + dest_path + str(c) + ".png"
-#             is_key -= 1
-#     pickle.dump(info, open(dest_path + "info.dat", "w"))
-#
-#
-# def compress_speck(path, dest_path, dec_level, bpp):
-#     if path[-1] != "/":
-#         path += "/"
-#     info = pickle.load(open(path + "info.dat", "r"))
-#     if not os.path.exists(dest_path):
-#         os.makedirs(dest_path)
-#     codec = sk.speck()
-#     info.wavelet = "cdf97"
-#     info.wavelet_level = dec_level
-#     info.frames = 3
-#     info.bpp = bpp
-#     for c in range(info.frames):
-#         frame = cv2.imread(path + str(c) + ".png",
-#                                     cv2.CV_LOAD_IMAGE_GRAYSCALE)
-#         info.cols = frame.shape[1]
-#         info.rows = frame.shape[0]
-#         frame = tools.zero_padding(frame)
-#         info.wavelet_cols = frame.shape[1]
-#         info.wavelet_rows = frame.shape[0]
-#         wavelet = lwt.cdf97(frame, dec_level)
-#         wavelet = tools.quant(wavelet, 0.00001)
-#         coded_frame = codec.compress(wavelet, bpp)
-#         stream = dict()
-#         stream["wise_bit"] = coded_frame[3]
-#         stream["payload"] = coded_frame[4]
-#         try:
-#             pickle.dump(stream, open(dest_path + str(c) + ".speck", "wb"))
-#         except:
-#             print "Failed to create: " + dest_path + str(c) + ".speck"
-#     pickle.dump(info, open(dest_path + "info.dat", "w"))
-#
-#
-# def decompress_speck(path, dest_path):
-#     if path[-1] != "/":
-#         path += "/"
-#     info = pickle.load(open(path + "info.dat", "r"))
-#     if not os.path.exists(dest_path):
-#         os.makedirs(dest_path)
-#     codec = sk.speck()
-#     for c in range(info.frames):
-#         frame = pickle.load(open(path + str(c) + ".speck","rb"))
-#         wavelet = codec.expand(frame["payload"], info.wavelet_cols,
-#                                    info.wavelet_rows, info.wavelet_level,
-#                                    frame["wise_bit"])
-#         iframe = lwt.icdf97(wavelet)
-#         iframe = tools.aquant(iframe, 100000)
-#         iframe = tools.unpadding(iframe, (info.rows, info.cols))
-#         if not cv2.imwrite(dest_path + str(c) + ".png",
-#                             iframe, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
-#             print "Failed to create: " + dest_path + str(c) + ".png"
-#     pickle.dump(info, open(dest_path + "info.dat", "w"))
-#
-# def compress_fvht(path, dest_path):
-#     print "TODO"
-#
-#
-# def compress_fvht_fullsearch(path, dest_path):
-#     print "TODO"
-#
-#
-# def compress_motion_speck(path, dest_path, bpp, dec_level=4,
-#                           macroblock_size=8, fixed_keyframe=0):
-#     """This method compress a image sequence from a directory using speck and
-#     motion compensation.
-#
-#     Args:
-#         path: The directory where the image sequence to be encoded is stored
-#         dest_path: A destination directory where the encoded frames will be
-#                    stored
-#         bpp: Compression ratio on bits per pixel
-#
-#     Kwargs:
-#         dec_level: Level of wavelet decomposition to be used
-#         macroblock_size: size of the macroblock used for motion compensation
-#         fixed_keyframe: size of the Group of Pictures
-#
-#     """
-#     if path[-1] != "/":
-#         path += "/"
-#     info = pickle.load(open(path + "info.dat", "r"))
-#     is_key = 0
-#     info.fixed_keyframe = fixed_keyframe
-#     info.full_size = 1
-#     if not os.path.exists(dest_path):
-#         os.makedirs(dest_path)
-#     info.macroblock_size = macroblock_size
-#     codec = sk.speck()
-#     info.wavelet = "cdf97"
-#     info.wavelet_level = dec_level
-#     info.full_size = 100
-#     for c in range(info.frames):
-#         original_frame = cv2.imread(path + str(c) + ".png",
-#                                     cv2.CV_LOAD_IMAGE_GRAYSCALE)
-#         info.cols = original_frame.shape[1]
-#         info.rows = original_frame.shape[0]
-#         frame = tools.zero_padding(original_frame)
-#         info.wavelet_cols = frame.shape[1]
-#         info.wavelet_rows = frame.shape[0]
-#         if is_key == 0:
-#             wavelet = lwt.cdf97(frame, dec_level)
-#             wavelet = tools.quant(wavelet, 0.0001)
-#             coded_frame = codec.compress(wavelet, bpp)
-#             stream = dict()
-#             stream["wise_bit"] = coded_frame[3]
-#             stream["payload"] = coded_frame[4]
-#             try:
-#                 pickle.dump(stream, open(dest_path + str(c) + ".speck", "wb"))
-#             except:
-#                 print "Failed to create: " + dest_path + str(c) + ".png"
-#             iwave = codec.expand(coded_frame[4], frame.shape[1],
-#                                  frame.shape[0], dec_level, coded_frame[3])
-#             iframe = lwt.icdf97(iwave)
-#             is_key = fixed_keyframe - 1
-#             key_frame = iframe
-#             info.motion_vectors += [0]
-#         else:
-#             p_frame, mvs = intraframe.encode_motion_frame(frame,
-#                                                           key_frame,
-#                                                           macroblock_size,
-#                                                           info.full_size)
-#             info.motion_vectors += [(mvs)]
-#             is_key -= 1
-#             wavelet = lwt.cdf97(p_frame, dec_level)
-#             wavelet = tools.quant(wavelet, 0.0001)
-#             coded_frame = codec.compress(wavelet, bpp)
-#             stream = dict()
-#             stream["wise_bit"] = coded_frame[3]
-#             stream["payload"] = coded_frame[4]
-#             try:
-#                 pickle.dump(stream, open(dest_path + str(c) + ".speck", "wb"))
-#             except:
-#                 print "Failed to create: " + dest_path + str(c) + ".png"
-#     pickle.dump(info, open(dest_path + "info.dat", "w"))
-#
-# def compress_motion_speck(path, dest_path, bpp, dec_level=4,
-#                           macroblock_size=8, fixed_keyframe=0):
-#     """This method compress a image sequence from a directory using speck and
-#     motion compensation.
-#
-#     Args:
-#         path: The directory where the image sequence to be encoded is stored
-#         dest_path: A destination directory where the encoded frames will be
-#                    stored
-#         bpp: Compression ratio on bits per pixel
-#
-#     Kwargs:
-#         dec_level: Level of wavelet decomposition to be used
-#         macroblock_size: size of the macroblock used for motion compensation
-#         fixed_keyframe: size of the Group of Pictures
-#
-#     """
-#     if path[-1] != "/":
-#         path += "/"
-#     info = pickle.load(open(path + "info.dat", "r"))
-#     is_key = 0
-#     info.fixed_keyframe = fixed_keyframe
-#     info.full_size = 1
-#     if not os.path.exists(dest_path):
-#         os.makedirs(dest_path)
-#     info.macroblock_size = macroblock_size
-#     codec = sk.speck()
-#     info.wavelet = "cdf97"
-#     info.wavelet_level = dec_level
-#     info.full_size = 100
-#     for c in range(info.frames):
-#         original_frame = cv2.imread(path + str(c) + ".png",
-#                                     cv2.CV_LOAD_IMAGE_GRAYSCALE)
-#         info.cols = original_frame.shape[1]
-#         info.rows = original_frame.shape[0]
-#         frame = tools.zero_padding(original_frame)
-#         info.wavelet_cols = frame.shape[1]
-#         info.wavelet_rows = frame.shape[0]
-#         if is_key == 0:
-#             wavelet = lwt.cdf97(frame, dec_level)
-#             wavelet = tools.quant(wavelet, 0.0001)
-#             coded_frame = codec.compress(wavelet, bpp)
-#             stream = dict()
-#             stream["wise_bit"] = coded_frame[3]
-#             stream["payload"] = coded_frame[4]
-#             try:
-#                 pickle.dump(stream, open(dest_path + str(c) + ".speck", "wb"))
-#             except:
-#                 print "Failed to create: " + dest_path + str(c) + ".png"
-#             iwave = codec.expand(coded_frame[4], frame.shape[1],
-#                                  frame.shape[0], dec_level, coded_frame[3])
-#             iframe = lwt.icdf97(iwave)
-#             is_key = fixed_keyframe - 1
-#             key_frame = iframe
-#             info.motion_vectors += [0]
-#         else:
-#             p_frame, mvs = intraframe.encode_motion_frame(frame,
-#                                                           key_frame,
-#                                                           macroblock_size,
-#                                                           info.full_size)
-#             info.motion_vectors += [(mvs)]
-#             is_key -= 1
-#             wavelet = lwt.cdf97(p_frame, dec_level)
-#             wavelet = tools.quant(wavelet, 0.0001)
-#             coded_frame = codec.compress(wavelet, bpp)
-#             stream = dict()
-#             stream["wise_bit"] = coded_frame[3]
-#             stream["payload"] = coded_frame[4]
-#             try:
-#                 pickle.dump(stream, open(dest_path + str(c) + ".speck", "wb"))
-#             except:
-#                 print "Failed to create: " + dest_path + str(c) + ".png"
-#     pickle.dump(info, open(dest_path + "info.dat", "w"))
-#
-# def decompress_motion_speck(path, dest_path):
-#
-#     pass
-#
-# def compress_spiht_fullsearch(path, dest_path):
-#     print "TODO"
+
+
+def decompress_fullsearch(path, dest_path, macroblock_size=8):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat", "r"))
+    header = MainHeader()
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    key_frame = cv2.imread(path + "key.png", cv2.CV_LOAD_IMAGE_GRAYSCALE)
+    for c in range(1, info.frames):
+        error = np.load(open(path + str(c) + info.ext))
+        mvs = np.load(open(path + str(c) + info.motionext))
+        frame = intra.decode_motion_frame(error,
+                                          mvs,
+                                          info.block_size,
+                                          key_frame)
+        if not cv2.imwrite(dest_path + str(c) + header.ext,
+                           frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
+            print "Failed to create: " + dest_path + str(c) + header.ext
+    header.frames = info.frames
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def compress_key_speck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.dat'
+    codec = sk.ar_speck()
+    for c in range(info.frames):
+        frame = cv2.imread(path + str(c) + info.ext,
+                           cv2.CV_LOAD_IMAGE_GRAYSCALE)
+        h264data = pickle.load(open(data_path + str(c) + ".hdr"))
+        rows = frame.shape[0]
+        cols = frame.shape[1]
+        frame = tls.zero_padding(frame)
+        wavelet = wave.cdf97(frame, dec_level)
+        wavelet = tls.quantize(wavelet, 1000, dtype=int)
+        bpp = h264data.abac_size / (rows * cols)
+        print bpp
+        coded_frame = codec.compress(wavelet, bpp)
+        coded_frame['real_cols'] = cols
+        coded_frame['real_rows'] = rows
+        try:
+            pickle.dump(coded_frame,
+                        open(dest_path + str(c) + header.ext, "wb"))
+        except:
+            print "Failed to create: " + dest_path + str(c) + header.ext
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def decompress_key_speck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.png'
+    codec = sk.ar_speck()
+    for c in range(info.frames):
+        r = pickle.load(open(path + str(c) + info.ext))
+        wavelet = codec.expand(r['payload'], r['colums'], r['rows'],
+                               r['level'], r['wisebit'], wave.CDF97)
+        frame = wave.icdf97(wavelet)
+        frame = tls.quantize(frame, 0.001, dtype=int)
+        frame = tls.unpadding(frame, (frame['real_rows'],
+                                      frame['real_cols']))
+        if not cv2.imwrite(dest_path + str(c) + ".png",
+                           frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
+            print "Failed to create: " + dest_path + str(c) + ".png"
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def compress_error_speck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.dat'
+    codec = sk.ar_speck()
+    for c in range(1, info.frames):
+        frame = np.load(path + str(c) + ".npy")
+        h264data = pickle.load(open(data_path + str(c) + ".hdr"))
+        rows = frame.shape[0]
+        cols = frame.shape[1]
+        frame = tls.zero_padding(frame)
+        wavelet = wave.cdf97(frame, dec_level)
+        wavelet = tls.quantize(wavelet, 1000, dtype=int)
+        bpp = h264data.abac_size / (rows * cols)
+        print bpp
+        coded_frame = codec.compress(wavelet, bpp)
+        coded_frame['real_cols'] = cols
+        coded_frame['real_rows'] = rows
+        try:
+            pickle.dump(coded_frame,
+                        open(dest_path + str(c) + header.ext, "wb"))
+        except:
+            print "Failed to create: " + dest_path + str(c) + header.ext
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def decompress_error_speck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.png'
+    codec = sk.ar_speck()
+    for c in range(1, info.frames):
+        r = pickle.load(open(path + str(c) + info.ext))
+        wavelet = codec.expand(r['payload'], r['colums'], r['rows'], r['level'],
+                               r['wisebit'], wave.CDF97)
+        frame = wave.icdf97(wavelet, dec_level)
+        frame = tls.quantize(frame, 0.001, dtype=int)
+        frame = tls.unpadding(frame, (frame['real_rows'],
+                                      frame['real_cols']))
+        if not cv2.imwrite(dest_path + str(c) + ".png",
+                           frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
+            print "Failed to create: " + dest_path + str(c) + ".png"
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def compress_key_fvspeck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.dat'
+    codec = sk.ar_fvspeck()
+    for c in range(info.frames):
+        frame = cv2.imread(path + str(c) + info.ext,
+                           cv2.CV_LOAD_IMAGE_GRAYSCALE)
+        h264data = pickle.load(open(data_path + str(c) + ".hdr"))
+        rows = frame.shape[0]
+        cols = frame.shape[1]
+        frame = tls.zero_padding(frame)
+        wavelet = wave.cdf97(frame, dec_level)
+        wavelet = tls.quantize(wavelet, 1000, dtype=int)
+        bpp = h264data.abac_size / (rows * cols)
+        print bpp
+        center = (int(rows / 2), int(cols / 2))
+        coded_frame = codec.compress(wavelet, bpp, 0.006, center, 0.3, 1, 1)
+        coded_frame['real_cols'] = cols
+        coded_frame['real_rows'] = rows
+        try:
+            pickle.dump(coded_frame,
+                        open(dest_path + str(c) + header.ext, "wb"))
+        except:
+            print "Failed to create: " + dest_path + str(c) + header.ext
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def decompress_key_fvspeck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.png'
+    codec = sk.ar_speck()
+    for c in range(info.frames):
+        r = pickle.load(open(path + str(c) + info.ext))
+        wavelet = codec.expand(r['payload'], r['colums'], r['rows'], r['level'],
+                               r['wisebit'], r['Lbpp'], r['lbpp'], ['center'],
+                               r['alpha'], r['c'], r['gamma'])
+        frame = wave.icdf97(wavelet, dec_level)
+        frame = tls.quantize(frame, 0.001, dtype=int)
+        frame = tls.unpadding(frame, (frame['real_rows'],
+                                      frame['real_cols']))
+        if not cv2.imwrite(dest_path + str(c) + ".png",
+                           frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
+            print "Failed to create: " + dest_path + str(c) + ".png"
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def compress_error_fvspeck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.dat'
+    codec = sk.ar_fvspeck()
+    for c in range(1, info.frames):
+        frame = np.load(path + str(c) + ".npy")
+        h264data = pickle.load(open(data_path + str(c) + ".hdr"))
+        rows = frame.shape[0]
+        cols = frame.shape[1]
+        frame = tls.zero_padding(frame)
+        wavelet = wave.cdf97(frame, dec_level)
+        wavelet = tls.quantize(wavelet, 1000, dtype=int)
+        bpp = h264data.abac_size / (rows * cols)
+        print bpp
+        center = (int(rows / 2), int(cols / 2))
+        coded_frame = codec.compress(wavelet, bpp, 0.006, center, 0.3, 1, 1)
+        coded_frame['real_cols'] = cols
+        coded_frame['real_rows'] = rows
+        try:
+            pickle.dump(coded_frame,
+                        open(dest_path + str(c) + header.ext, "wb"))
+        except:
+            print "Failed to create: " + dest_path + str(c) + header.ext
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
+
+def decompress_error_fvspeck(path, dest_path, data_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    info = pickle.load(open(path + "header.dat"))
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    header = MainHeader()
+    header.frames = info.frames
+    header.ext = '.png'
+    codec = sk.ar_speck()
+    for c in range(1, info.frames):
+        r = pickle.load(open(path + str(c) + info.ext))
+        wavelet = codec.expand(r['payload'], r['colums'], r['rows'], r['level'],
+                               r['wisebit'], r['Lbpp'], r['bpp'], ['center'],
+                               r['alpha'], r['c'], r['gamma'])
+        frame = wave.icdf97(wavelet, dec_level)
+        frame = tls.quantize(frame, 0.001, dtype=int)
+        frame = tls.unpadding(frame, (frame['real_rows'],
+                                      frame['real_cols']))
+        if not cv2.imwrite(dest_path + str(c) + ".png",
+                           frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
+            print "Failed to create: " + dest_path + str(c) + ".png"
+    pickle.dump(header, open(dest_path + "header.dat", "w"))
+
 
 if __name__ == '__main__':
-     # split_raw("/Users/juancgalan/Documents/video_test/akiyo/original/akiyo_cif.mov",
-     #           "/Users/juancgalan/Documents/video_test/akiyo/raw/")
+    # split_raw("/Users/juancgalan/Documents/video_test/akiyo/original/akiyo_cif.mov",
+    #           "/Users/juancgalan/Documents/video_test/akiyo/raw/")
     # compress_fullsearch(
     #     "/Users/juancgalan/Documents/video_test/akiyo/raw/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/")
@@ -416,17 +430,49 @@ if __name__ == '__main__':
     # compress_error_h265(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/")
-    decompress_error_h265(
-        "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
-        "/Users/juancgalan/Documents/video_test/akiyo/h265errordec/")
+    # decompress_error_h265(
+    #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/h265errordec/")
     # decompress_fullsearch(
-    #     "/Users/juancgalan/Downloads/video_test/akiyo/fullsearch/",
-    #     "/Users/juancgalan/Downloads/video_test/akiyo/defullsearch/")
-    # compress_speck(
-    #     "/Users/juancgalan/Downloads/video_test/akiyo/fullsearch/",
-    #     "/Users/juancgalan/Downloads/video_test/akiyo/speck/",
-    #     4,1)
-    # decompress_speck(
-    #     "/Users/juancgalan/Downloads/video_test/akiyo/speck/",
-    #     "/Users/juancgalan/Downloads/video_test/akiyo/despeck/",
-
+    #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/defullsearch/")
+    compress_key_speck(
+        "/Users/juancgalan/Documents/video_test/akiyo/raw/",
+        "/Users/juancgalan/Documents/video_test/akiyo/speckkey/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
+        4)
+    # decompress_key_speck(
+    #     "/Users/juancgalan/Documents/video_test/akiyo/speckkey/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/despeckkey/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
+    #     4)
+    compress_key_fvspeck(
+        "/Users/juancgalan/Documents/video_test/akiyo/raw/",
+        "/Users/juancgalan/Documents/video_test/akiyo/fvspeckkey/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
+        4)
+    decompress_key_fvspeck(
+        "/Users/juancgalan/Documents/video_test/akiyo/fvskpeckkey/",
+        "/Users/juancgalan/Documents/video_test/akiyo/defvspeckkey/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
+        4)
+    compress_error_speck(
+        "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
+        "/Users/juancgalan/Documents/video_test/akiyo/speckerror/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
+        4)
+    decompress_error_speck(
+        "/Users/juancgalan/Documents/video_test/akiyo/speckerror/",
+        "/Users/juancgalan/Documents/video_test/akiyo/despeckerror/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
+        4)
+    compress_error_fvspeck(
+        "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
+        "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265/error",
+        4)
+    decompress_error_fvspeck(
+        "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
+        "/Users/juancgalan/Documents/video_test/akiyo/defvspeckerror/",
+        "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
+        4)

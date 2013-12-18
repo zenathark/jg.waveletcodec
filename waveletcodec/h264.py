@@ -20,7 +20,7 @@ class integDCT(object):
     ])
     norm_one_ker = []
     norm_i_one_ker = []
-    qs = np.arange(0.625, 224, 0.625 / 6)
+    qs = (0.625 * (np.power(2, 1.0 / 6) ** range(52)))
 
     def __init__(self):
         r = 1 / np.sqrt((self.one_ker ** 2).sum(1))

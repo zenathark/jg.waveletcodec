@@ -119,7 +119,7 @@ def MAE(w, kw):
         estimation error
     """
     N = w.shape[0]
-    error = w - kw
+    error = w.astype(float) - kw
     mae = 1.0 / N ** 2 * sum(sum(abs(w - kw))) * 2
     return (mae, error)
 
@@ -131,7 +131,7 @@ def decode_motion_frame(error, motion_vectors, window_size, key_frame):
     k_r, k_c = key_frame.shape
     #window size
     r = c = window_size
-    decoded_frame = np.zeros(error.shape)
+    decoded_frame = np.zeros(error.shape, dtype=np.uint8)
     #composed index for easy iteration
     index = zip(it.product(range(0, k_r, r), range(0, k_c, c)), motion_vectors)
     for (i, j), (d_i, d_j) in index:
@@ -139,5 +139,5 @@ def decode_motion_frame(error, motion_vectors, window_size, key_frame):
         M = j + r
         window = error[i:N, j:M]
         key_window = key_frame[i + d_i:N + d_i, j + d_j:M + d_j]
-        decoded_frame[i:N, j:M] = window + key_window
+        decoded_frame[i:N, j:M] = (window + key_window) % 256
     return decoded_frame

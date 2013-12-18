@@ -11,6 +11,7 @@ import pylab as np
 import waveletcodec.tools as tools
 import waveletcodec.lwt as lwt
 import cv2
+import math
 
 #Constant Section
 CDF97 = 1
@@ -137,3 +138,41 @@ def icdf97(wavelet):
     """
     signal = _CDF97.inverse(wavelet, wavelet.level)
     return signal
+
+
+def get_z_order(dim):
+    mtx = []
+    n = int(math.log(dim, 2))
+    pows = range(int(n / 2))
+    for i in range(dim):
+        x = 0
+        y = 0
+        for j in pows:
+            x |= ((i >> 2 * j) & 1) << j
+            y |= ((i >> 2 * j + 1) & 1) << j
+        mtx += [(y, x)]
+    return mtx
+
+
+# def get_morton_order(dim, idx = 0, size = -1):
+#     if size < 0:
+#         mtx = deque()
+#     else:
+#         mtx = deque([],size)
+#     if idx <> 0:
+#         swp = idx
+#         idx = dim
+#         dim = swp
+#     n = int(math.log(dim,2))
+#     pows = range(int(n/2))
+#     for i in range(dim):
+#         x = 0
+#         y = 0
+#         for j in pows:
+#             x |= ((i >> 2*j) & 1) << j
+#             y |= ((i >> 2*j+1) & 1) << j
+#         if idx == 0:
+#             mtx += [vector((y,x))]
+#         else:
+#             idx -= 1
+#     return mtx
