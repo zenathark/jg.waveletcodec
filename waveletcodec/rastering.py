@@ -25,6 +25,17 @@ def get_z_order(dim):
     return mtx
 
 
+def get_z_index(v):
+    j, i = v
+    j = int(j)
+    i = int(i)
+    z = (((j * 0x0101010101010101 & 0x8040201008040201) *
+          0x0102040810204081 >> 49) & 0x5555 |
+         ((i * 0x0101010101010101 & 0x8040201008040201) *
+          0x0102040810204081 >> 48) & 0xAAAA)
+    return z
+
+
 class vector(object):
     def __init__(self, data, entry_type="-"):
         if isinstance(data, np.ndarray):

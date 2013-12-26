@@ -220,7 +220,7 @@ def psnr(original, signal):
         A float that contains the PSNR
 
     """
-    return 10
+    return 20 * np.log10(255) - 10 * np.log10(mse(original, signal))
 
 
 def mse(original, signal):

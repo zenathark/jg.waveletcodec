@@ -123,11 +123,15 @@ class FilterBank(object):
         """Return the inverse standard n level wavelet transform on 2D."""
         erows = wavelet.shape[0]
         ecols = wavelet.shape[1]
+        zignal = np.zeros(wavelet.shape, dtype = np.float64)
+        zignal[:,:] = wavelet[:,:]
+        erows //= 2 ** (level - 1)
+        ecols //= 2 ** (level - 1)
         for _ in range(level):
-            wavelet[:erows, :ecols] = self._inverse2D(wavelet[:erows, :ecols])
-            erows //= 2
-            ecols //= 2
-        return wavelet
+            zignal[:erows, :ecols] = self._inverse2D(zignal[:erows, :ecols])
+            erows *= 2
+            ecols *= 2
+        return zignal
 
     def _forward(self, signal):
         """Calculate a one level forward lifting wavelet transform (LWT).
