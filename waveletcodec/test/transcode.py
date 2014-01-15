@@ -201,7 +201,7 @@ def compress_key_speck(path, dest_path, data_path, dec_path, dec_level):
     header.frames = info.frames
     header.ext = '.dat'
     codec = sk.ar_speck()
-    for c in range(21, info.frames):
+    for c in range(info.frames):
         frame = cv2.imread(path + str(c) + info.ext,
                            cv2.CV_LOAD_IMAGE_GRAYSCALE)
         h264data = pickle.load(open(data_path + str(c) + ".hdr"))
@@ -403,7 +403,7 @@ def compress_error_fvspeck(path, dest_path, data_path, dec_path, dec_level):
     header.frames = info.frames
     header.ext = '.dat'
     codec = sk.ar_fvspeck()
-    for c in range(1, info.frames):
+    for c in range(224, info.frames):
         frame = np.load(path + str(c) + ".npy")
         h264data = pickle.load(open(data_path + str(c) + ".hdr"))
         rows = frame.shape[0]
@@ -418,7 +418,7 @@ def compress_error_fvspeck(path, dest_path, data_path, dec_path, dec_level):
         coded_frame['real_cols'] = cols
         coded_frame['real_rows'] = rows
         wvlt = codec.clone
-        iframe = wave.icdf97(wvlt, dec_level)
+        iframe = wave.icdf97(wvlt)
         iframe = tls.quantize(iframe, 0.001)
         iframe = tls.unpadding(frame, (rows, cols))
         try:
@@ -431,6 +431,71 @@ def compress_error_fvspeck(path, dest_path, data_path, dec_path, dec_level):
             print "Failed to create: " + dest_path + str(c) + header.ext
     pickle.dump(header, open(dest_path + "header.dat", "w"))
     pickle.dump(header, open(dec_path + "header.dat", "w"))
+
+
+def test_fvspeck(path, dest_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    codec = sk.ar_fvspeck()
+    frame = cv2.imread(path + str(0) + ".png",
+                       cv2.CV_LOAD_IMAGE_GRAYSCALE)
+    rows = frame.shape[0]
+    cols = frame.shape[1]
+    frame = tls.zero_padding(frame)
+    wavelet = wave.cdf97(frame, dec_level)
+    wavelet = tls.quantize(wavelet, 1000, dtype=int)
+    center = (int(rows / 2), int(cols / 2))
+    coded_frame = codec.compress(wavelet, 0.5, 0.006, center, 0.3, 1, 4)
+    coded_frame['real_cols'] = cols
+    coded_frame['real_rows'] = rows
+    wvlt = codec.clone
+    iframe = wave.icdf97(wvlt)
+    iframe = tls.quantize(iframe, 0.001)
+    iframe = tls.unpadding(iframe, (rows, cols))
+    iframe2 = tls.normalize(iframe, upper_bound=255, dtype=np.uint8)
+    cv2.imwrite(dest_path + "21006.png", iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
+    pickle.dump(iframe, open(dest_path + "21006.npy", "w"))
+#second
+    # coded_frame = codec.compress(wavelet, bpp, 0.006, center, 0.3, 1, 0.3)
+    # coded_frame['real_cols'] = cols
+    # coded_frame['real_rows'] = rows
+    # wvlt = codec.clone
+    # iframe = wave.icdf97(wvlt)
+    # iframe = tls.quantize(iframe, 0.001)
+    # iframe = tls.unpadding(frame, (rows, cols))
+    # iframe2 = tls.normalize(iframe, upper_bound=255, dtype=np.uint8)
+    # if not cv2.imwrite(dec_path + str(c) + "03.png",
+    #                     iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
+    #     print "Failed to create: " + dest_path + str(c) + ".png"
+    # pickle.dump(iframe, open(dest_path +str(c) + ".npy","w"))
+
+
+def test_speck(path, dest_path, dec_level):
+    if path[-1] != "/":
+        path += "/"
+    if not os.path.exists(dest_path):
+        os.makedirs(dest_path)
+    codec = sk.ar_speck()
+    frame = cv2.imread(path + str(0) + ".png",
+                       cv2.CV_LOAD_IMAGE_GRAYSCALE)
+    rows = frame.shape[0]
+    cols = frame.shape[1]
+    frame = tls.zero_padding(frame)
+    wavelet = wave.cdf97(frame, dec_level)
+    wavelet = tls.quantize(wavelet, 1000, dtype=int)
+    center = (int(rows / 2), int(cols / 2))
+    coded_frame = codec.compress(wavelet, 0.5)
+    coded_frame['real_cols'] = cols
+    coded_frame['real_rows'] = rows
+    wvlt = codec.clone
+    iframe = wave.icdf97(wvlt)
+    iframe = tls.quantize(iframe, 0.001)
+    iframe = tls.unpadding(iframe, (rows, cols))
+    iframe2 = tls.normalize(iframe, upper_bound=255, dtype=np.uint8)
+    cv2.imwrite(dest_path + "plain5.png", iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
+    pickle.dump(iframe, open(dest_path + "plain5.npy", "w"))
 
 
 # def decompress_error_fvspeck(path, dest_path, data_path, dec_level):
@@ -465,8 +530,8 @@ if __name__ == '__main__':
     #     "/Users/juancgalan/Documents/video_test/akiyo/raw/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/")
     # compress_key_h265(
-    #     "/Users/juancgalan/Documents/video_test/akiyo/raw/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/")
+    #     "/home/zenathar/Documents/video_test/akiyo/raw/",
+    #     "/home/zenathar/Documents/video_test/akiyo/h265key/")
     # decompress_key_h265(
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265keydec/")
@@ -501,23 +566,23 @@ if __name__ == '__main__':
     #     "/Users/juancgalan/Documents/video_test/akiyo/defvspeckkey/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
     #     4)
-    compress_error_speck(
-        "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
-        "/Users/juancgalan/Documents/video_test/akiyo/speckerror/",
-        "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
-        "/Users/juancgalan/Documents/video_test/akiyo/despeckerror/",
-        4)
+    # compress_error_speck(
+    #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/speckerror/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
+    #     "/Users/juancgalan/Documents/video_test/akiyo/despeckerror/",
+    #     4)
     # decompress_error_speck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/speckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/despeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
     #     4)
-    compress_error_fvspeck(
-        "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
-        "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
-        "/Users/juancgalan/Documents/video_test/akiyo/h265/error",
-        "/Users/juancgalan/Documents/video_test/akiyo/defvspeckerror/",
-        4)
+    # compress_error_fvspeck(
+    #     "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
+    #     "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
+    #     "/home/zenathar/Documents/video_test/akiyo/h265error/",
+    #     "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
+    #     4)
     # decompress_error_fvspeck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/defvspeckerror/",
@@ -525,3 +590,7 @@ if __name__ == '__main__':
     #     4)
     # i = cv2.imread("/Users/juancgalan/Documents/video_test/akiyo/raw/0.png")
     # j = cv2.imread("/Users/juancgalan/Documents/video_test/akiyo/speckkey/0.png")
+    test_fvspeck(
+         "/home/zenathar/Documents/video_test/akiyo/raw/",
+         "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
+         4)
