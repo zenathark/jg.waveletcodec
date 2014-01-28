@@ -44,7 +44,7 @@ class speck(object):
                 self.nextLIS = []
                 self.LSP += self.nextLSP
                 self.nextLSP = []
-                self.LIS.sort(key=lambda X: len(X))  # (reverse=True)
+                # self.LIS.sort(key=lambda X: len(X))  # (reverse=True)
         except EOFError:
             pass
             # print type(e)
@@ -324,7 +324,7 @@ class fv_speck(speck):
         try:
             P = self.get_center(ij)
         except NameError:
-            return self.Lbpp
+            return 8 # self.Lbpp
         d = self.norm(P[1] - ij[1], P[0] - ij[0]) * 2 ** P[2] / \
             self.fovea_length
         if d < self.alpha:
@@ -453,3 +453,11 @@ class ar_fvspeck(fv_speck):
             self.out_idx += 1
         else:
             raise EOFError
+
+    def get_current_bpp(self):
+        bpp = len(self.output)
+        bpp /= float(self.wv.shape[0] * self.wv.shape[1])
+        if bpp > self.Lbpp:
+            return 0
+        else:
+            return bpp

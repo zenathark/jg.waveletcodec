@@ -72,21 +72,16 @@ def create_error_graph():
 
 
 def create_psnr_fovea():
-    path_or = "/home/zenathar/Documents/video_test/akiyo/raw/0.png"
-    path_speck = "/home/zenathar/Documents/video_test/akiyo/testfvspeck/21006.npy"
-    path_fovea = "/home/zenathar/Documents/video_test/akiyo/testfvspeck/plain5.npy"
-    frame = cv2.imread(path_or,
-                       cv2.CV_LOAD_IMAGE_GRAYSCALE)
-    framespeck = pickle.load(open(path_speck))
-    framefovea = pickle.load(open(path_fovea))
-    rows = frame.shape[0]
-    cols = frame.shape[1]
-    r, c = (int(rows / 2), int(cols / 2))
-    print tls.psnr(frame, framespeck)
-    print tls.psnr(frame, framefovea)
-    print tls.psnr(frame[r-10:r+10, c-10: c+10], framespeck[r-10:r+10, c-10: c+10])
-    print tls.psnr(frame[r-10:r+10, c-10: c+10], framefovea[r-10:r+10, c-10: c+10])
-
+    dest_path = "/home/zenathar/Documents/spjour"
+    h264_psnr = pickle.load(open(dest_path + "/speck.npy"))
+    speck_psnr = pickle.load(open(dest_path + "/afv.npy"))
+    h264_line = plt.plot(range(2,144)[:90], h264_psnr[:90], "k*")
+    speck_line = plt.plot(range(2,144)[:90], speck_psnr[:90], "k+")
+    plt.legend(('SPECK', 'AFV-SPECK'), 'right')
+    plt.grid(True)
+    plt.xlabel('Sub image size')
+    plt.ylabel('PSNR (more is better)')
+    plt.show()
 
 
 

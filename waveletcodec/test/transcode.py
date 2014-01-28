@@ -438,7 +438,7 @@ def test_fvspeck(path, dest_path, dec_level):
         path += "/"
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
-    codec = sk.ar_fvspeck()
+    codec = sk.fv_speck()
     frame = cv2.imread(path + str(0) + ".png",
                        cv2.CV_LOAD_IMAGE_GRAYSCALE)
     rows = frame.shape[0]
@@ -446,8 +446,8 @@ def test_fvspeck(path, dest_path, dec_level):
     frame = tls.zero_padding(frame)
     wavelet = wave.cdf97(frame, dec_level)
     wavelet = tls.quantize(wavelet, 1000, dtype=int)
-    center = (int(rows / 2), int(cols / 2))
-    coded_frame = codec.compress(wavelet, 0.5, 0.006, center, 0.3, 1, 4)
+    center = (int(512 / 2), int(512 / 2))
+    coded_frame = codec.compress(wavelet, 3, 0.06, center, 0.3, 1, 40)
     coded_frame['real_cols'] = cols
     coded_frame['real_rows'] = rows
     wvlt = codec.clone
@@ -455,8 +455,8 @@ def test_fvspeck(path, dest_path, dec_level):
     iframe = tls.quantize(iframe, 0.001)
     iframe = tls.unpadding(iframe, (rows, cols))
     iframe2 = tls.normalize(iframe, upper_bound=255, dtype=np.uint8)
-    cv2.imwrite(dest_path + "21006.png", iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
-    pickle.dump(iframe, open(dest_path + "21006.npy", "w"))
+    cv2.imwrite(dest_path + "21006_2.png", iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
+    pickle.dump(iframe, open(dest_path + "21006_2.npy", "w"))
 #second
     # coded_frame = codec.compress(wavelet, bpp, 0.006, center, 0.3, 1, 0.3)
     # coded_frame['real_cols'] = cols
@@ -477,7 +477,7 @@ def test_speck(path, dest_path, dec_level):
         path += "/"
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
-    codec = sk.ar_speck()
+    codec = sk.speck()
     frame = cv2.imread(path + str(0) + ".png",
                        cv2.CV_LOAD_IMAGE_GRAYSCALE)
     rows = frame.shape[0]
@@ -486,7 +486,7 @@ def test_speck(path, dest_path, dec_level):
     wavelet = wave.cdf97(frame, dec_level)
     wavelet = tls.quantize(wavelet, 1000, dtype=int)
     center = (int(rows / 2), int(cols / 2))
-    coded_frame = codec.compress(wavelet, 0.5)
+    coded_frame = codec.compress(wavelet, 3)
     coded_frame['real_cols'] = cols
     coded_frame['real_rows'] = rows
     wvlt = codec.clone
@@ -494,8 +494,8 @@ def test_speck(path, dest_path, dec_level):
     iframe = tls.quantize(iframe, 0.001)
     iframe = tls.unpadding(iframe, (rows, cols))
     iframe2 = tls.normalize(iframe, upper_bound=255, dtype=np.uint8)
-    cv2.imwrite(dest_path + "plain5.png", iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
-    pickle.dump(iframe, open(dest_path + "plain5.npy", "w"))
+    cv2.imwrite(dest_path + "plain5_2a.png", iframe2, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
+    pickle.dump(iframe, open(dest_path + "plain5_2.npy", "w"))
 
 
 # def decompress_error_fvspeck(path, dest_path, data_path, dec_level):
@@ -591,6 +591,10 @@ if __name__ == '__main__':
     # i = cv2.imread("/Users/juancgalan/Documents/video_test/akiyo/raw/0.png")
     # j = cv2.imread("/Users/juancgalan/Documents/video_test/akiyo/speckkey/0.png")
     test_fvspeck(
+         "/home/zenathar/Documents/video_test/akiyo/raw/",
+         "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
+         4)
+    test_speck(
          "/home/zenathar/Documents/video_test/akiyo/raw/",
          "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
          4)
