@@ -25,8 +25,6 @@ for i in range(2, cy):
     subimspeck = speck[cy-i:cy+i,cx-i:cx+i]
     subimafv = afv[cy-i:cy+i,cx-i:cx+i]
     sp.append(tls.psnr(subimor, subimspeck))
-    speck_line = plt.plot(range(0,299), speck_psnr, "k+")
-    speck_line = plt.plot(range(0,299), speck_psnr, "k+")
     af.append(tls.psnr(subimor, subimafv))
 pickle.dump(sp, open(output + "speck.npy", "w"))
 pickle.dump(af, open(output + "afv.npy", "w"))

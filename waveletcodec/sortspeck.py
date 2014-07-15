@@ -45,6 +45,7 @@ class speck(object):
                 self.LSP += self.nextLSP
                 self.nextLSP = []
                 # self.LIS.sort(key=lambda X: len(X))  # (reverse=True)
+                self.LSP.sort(key=lambda x: raster.get_z_index(x))
         except EOFError:
             pass
             # print type(e)
