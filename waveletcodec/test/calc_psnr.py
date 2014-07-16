@@ -9,19 +9,25 @@ def calculate_psnr():
     path_or = "/home/zenathar/Documents/video_test/akiyo/raw/"
     path_h264 = "/home/zenathar/Documents/video_test/akiyo/h265keydec/"
     path_speck = "/home/zenathar/Documents/video_test/akiyo/despeckkey/"
+    path_afv = "/home/zenathar/Documents/video_test/akiyo/defvspeckkey/"
     h264_psnr = []
     speck_psnr = []
+    afv_psnr = []
     for c in range(299):
         frame = cv2.imread(path_or + str(c) + ".png",
                            cv2.CV_LOAD_IMAGE_GRAYSCALE)
         h_frame = cv2.imread(path_h264 + str(c) + ".png",
                              cv2.CV_LOAD_IMAGE_GRAYSCALE)
         s_frame = pickle.load(open(path_speck + str(c) + ".npy"))
+        v_frame = cv2.imread(path_afv + str(c) + ".png",
+                             cv2.CV_LOAD_IMAGE_GRAYSCALE)
         h264_psnr.append(tls.psnr(frame, h_frame))
         speck_psnr.append(tls.psnr(frame, s_frame))
+        afv_psnr.append(tls.psnr(frame, v_frame))
     dest_path = "/home/zenathar/Documents/video_test/akiyo/psnr/"
     pickle.dump(h264_psnr, open(dest_path + "/h264key.dat", "w"))
     pickle.dump(speck_psnr, open(dest_path + "/speckkey.dat", "w"))
+    pickle.dump(speck_psnr, open(dest_path + "/afvkey.dat", "w"))
     return
 
 
@@ -29,10 +35,11 @@ def create_key_graph():
     dest_path = "/home/zenathar/Documents/video_test/akiyo/psnr/"
     h264_psnr = pickle.load(open(dest_path + "/h264key.dat"))
     speck_psnr = pickle.load(open(dest_path + "/speckkey.dat"))
+    afv_psnr = pickle.load(open(dest_path + "/afvkey.dat"))
     h264_line = plt.plot(range(0,299), h264_psnr, "k-")
     speck_line = plt.plot(range(0,299), speck_psnr, "k+")
-    speck_line = plt.plot(range(0,299), speck_psnr, "k+")
-    plt.legend(('H264/HEVC iDCT', 'SPECK and LWT'), 'right')
+    afv_line = plt.plot(range(0,299), afv_psnr, "kx")
+    plt.legend(('H264/HEVC iDCT', 'SP-CODEC', 'AWFV-CODEC'), 'right')
     plt.grid(True)
     plt.xlabel('Frame index')
     plt.ylabel('PSNR (more is better)')
@@ -43,17 +50,22 @@ def calculate_mse():
     path_or = "/home/zenathar/Documents/video_test/akiyo/fullsearch/"
     path_h264 = "/home/zenathar/Documents/video_test/akiyo/h265errordec/"
     path_speck = "/home/zenathar/Documents/video_test/akiyo/despeckerror/"
+    path_afv = "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/"
     h264_psnr = []
     speck_psnr = []
+    afv_psnr = []
     for c in range(1, 299):
         frame = np.load(open(path_or + str(c) + ".npy"))
         h_frame = np.load(open(path_h264 + str(c) + ".npy"))
         s_frame = pickle.load(open(path_speck + str(c) + ".npy"))
+        v_frame = pickle.load(open(path_afv + str(c) + ".npy"))
         h264_psnr.append(tls.mse(frame, h_frame))
         speck_psnr.append(tls.mse(frame, s_frame))
+        afv_psnr.append(tls.mse(frame, v_frame))
     dest_path = "/home/zenathar/Documents/video_test/akiyo/psnr/"
     pickle.dump(h264_psnr, open(dest_path + "/h264error.dat", "w"))
     pickle.dump(speck_psnr, open(dest_path + "/speckerror.dat", "w"))
+    pickle.dump(afv_psnr, open(dest_path + "/afverror.dat", "w"))
     return
 
 
@@ -61,10 +73,11 @@ def create_error_graph():
     dest_path = "/home/zenathar/Documents/video_test/akiyo/psnr/"
     h264_psnr = pickle.load(open(dest_path + "/h264error.dat"))
     speck_psnr = pickle.load(open(dest_path + "/speckerror.dat"))
+    afv_psnr = pickle.load(open(dest_path + "/afverror.dat"))
     h264_line = plt.plot(range(1,299), h264_psnr, "k-")
     speck_line = plt.plot(range(1,299), speck_psnr, "k+")
-    speck_line = plt.plot(range(1,299), speck_psnr, "k+")
-    plt.legend(('H264/HEVC iDCT', 'SPECK and LWT'), 'right')
+    afv_line = plt.plot(range(1,299), afv_psnr, "k*")
+    plt.legend(('H264/HEVC iDCT', 'SP-Codec', 'AWFV-Codec'), 'right')
     plt.grid(True)
     plt.xlabel('Frame index')
     plt.ylabel('MSE (less is better)')
@@ -88,6 +101,6 @@ def create_psnr_fovea():
 if __name__ == "__main__":
     # calculate_psnr()
     # create_key_graph()
-    # calculate_mse()
+    calculate_mse()
     # create_error_graph()
-    create_psnr_fovea()
+    # create_psnr_fovea()

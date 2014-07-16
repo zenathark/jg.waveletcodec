@@ -403,7 +403,7 @@ def compress_error_fvspeck(path, dest_path, data_path, dec_path, dec_level):
     header.frames = info.frames
     header.ext = '.dat'
     codec = sk.ar_fvspeck()
-    for c in range(224, info.frames):
+    for c in range(1, info.frames):
         frame = np.load(path + str(c) + ".npy")
         h264data = pickle.load(open(data_path + str(c) + ".hdr"))
         rows = frame.shape[0]
@@ -426,7 +426,8 @@ def compress_error_fvspeck(path, dest_path, data_path, dec_path, dec_level):
                         open(dest_path + str(c) + header.ext, "wb"))
 
             pickle.dump(iframe,
-                        open(dec_path + str(c) + header.ext, "wb"))
+                        open(dec_path + str(c) + ".npy", "wb"))
+            print dec_path + str(c) + ".npy"
         except:
             print "Failed to create: " + dest_path + str(c) + header.ext
     pickle.dump(header, open(dest_path + "header.dat", "w"))
@@ -574,15 +575,15 @@ if __name__ == '__main__':
     #     4)
     # decompress_error_speck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/speckerror/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/despeckerror/",
+    #     "/Users/juancgalan/Documentsc/video_test/akiyo/despeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
     #     4)
-    # compress_error_fvspeck(
-    #     "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
-    #     "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
-    #     "/home/zenathar/Documents/video_test/akiyo/h265error/",
-    #     "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
-    #     4)
+    compress_error_fvspeck(
+        "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
+        "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
+        "/home/zenathar/Documents/video_test/akiyo/h265error/",
+        "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
+        4)
     # decompress_error_fvspeck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/defvspeckerror/",
@@ -590,11 +591,11 @@ if __name__ == '__main__':
     #     4)
     # i = cv2.imread("/Users/juancgalan/Documents/video_test/akiyo/raw/0.png")
     # j = cv2.imread("/Users/juancgalan/Documents/video_test/akiyo/speckkey/0.png")
-    test_fvspeck(
-         "/home/zenathar/Documents/video_test/akiyo/raw/",
-         "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
-         4)
-    test_speck(
-         "/home/zenathar/Documents/video_test/akiyo/raw/",
-         "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
-         4)
+    # test_fvspeck(
+    #      "/home/zenathar/Documents/video_test/akiyo/raw/",
+    #      "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
+    #      4)
+    # test_speck(
+    #      "/home/zenathar/Documents/video_test/akiyo/raw/",
+    #      "/home/zenathar/Documents/video_test/akiyo/testfvspeck/",
+    #      4)
