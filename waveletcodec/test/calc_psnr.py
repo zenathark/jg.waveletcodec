@@ -101,6 +101,6 @@ def create_psnr_fovea():
 if __name__ == "__main__":
     # calculate_psnr()
     # create_key_graph()
-    calculate_mse()
-    # create_error_graph()
+    # calculate_mse()
+    create_error_graph()
     # create_psnr_fovea()
