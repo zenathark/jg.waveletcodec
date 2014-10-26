@@ -36,10 +36,12 @@ def create_key_graph():
     h264_psnr = pickle.load(open(dest_path + "/h264key.dat"))
     speck_psnr = pickle.load(open(dest_path + "/speckkey.dat"))
     afv_psnr = pickle.load(open(dest_path + "/afvkey.dat"))
+    base_line = [36] * len(h264_psnr)
     h264_line = plt.plot(range(0,299), h264_psnr, "k-")
     speck_line = plt.plot(range(0,299), speck_psnr, "k+")
-    afv_line = plt.plot(range(0,299), afv_psnr, "kx")
-    plt.legend(('H264/HEVC iDCT', 'SP-CODEC', 'AWFV-CODEC'), 'right')
+    afv_line = plt.plot(range(0,299), afv_psnr, "k-")
+    afv_line = plt.plot(range(0,299), base_line, "k--")
+    plt.legend(('H264/HEVC iDCT', 'SP-CODEC', 'AWFV-CODEC', 'Uniform $\Delta$Q'), 'right', bbox_to_anchor=(1, 0.7 ))
     plt.grid(True)
     plt.xlabel('Frame index')
     plt.ylabel('PSNR (more is better)')
@@ -86,11 +88,13 @@ def create_error_graph():
 
 def create_psnr_fovea():
     dest_path = "/home/zenathar/Documents/spjour"
-    h264_psnr = pickle.load(open(dest_path + "/speck.npy"))
-    speck_psnr = pickle.load(open(dest_path + "/afv.npy"))
-    h264_line = plt.plot(range(2,144)[:90], h264_psnr[:90], "k*")
-    speck_line = plt.plot(range(2,144)[:90], speck_psnr[:90], "k+")
-    plt.legend(('SPECK', 'AFV-SPECK'), 'right')
+    h264_psnr = pickle.load(open(dest_path + "/h264.npy"))
+    speck_psnr = pickle.load(open(dest_path + "/speck.npy"))
+    afv_psnr = pickle.load(open(dest_path + "/afv.npy"))
+    h264_line = plt.plot(range(2,144)[:90], h264_psnr[:90], "k.")
+    speck_line = plt.plot(range(2,144)[:90], speck_psnr[:90], "k*")
+    afv_line = plt.plot(range(2,144)[:90], afv_psnr[:90], "k+")
+    plt.legend(('H.264', 'SPECK', 'AFV-SPECK'), 'right')
     plt.grid(True)
     plt.xlabel('Sub image size')
     plt.ylabel('PSNR (more is better)')
@@ -100,7 +104,7 @@ def create_psnr_fovea():
 
 if __name__ == "__main__":
     # calculate_psnr()
-    # create_key_graph()
+    create_key_graph()
     # calculate_mse()
-    create_error_graph()
+    # create_error_graph()
     # create_psnr_fovea()
