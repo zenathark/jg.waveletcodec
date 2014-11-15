@@ -3,3 +3,4 @@
 *.swp
 src/fvht/build/*
 *.so
+data

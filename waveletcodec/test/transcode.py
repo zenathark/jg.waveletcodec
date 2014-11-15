@@ -55,6 +55,10 @@ def split_raw(filename, dest_file):
     current_frame = original.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
     frame_count = 0
     info = MainHeader()
+    if not loaded:
+        print "Unable to reach video"
+    print total_frames
+    total_frames=301
     while loaded and current_frame < total_frames:
         target_file = dest_file + str(int(frame_count)) + ".png"
         frame = cv2.cvtColor(frame, cv2.cv.CV_BGR2GRAY)
@@ -201,7 +205,7 @@ def compress_key_speck(path, dest_path, data_path, dec_path, dec_level):
     header.frames = info.frames
     header.ext = '.dat'
     codec = sk.ar_speck()
-    for c in range(info.frames):
+    for c in range(271, info.frames):
         frame = cv2.imread(path + str(c) + info.ext,
                            cv2.CV_LOAD_IMAGE_GRAYSCALE)
         h264data = pickle.load(open(data_path + str(c) + ".hdr"))
@@ -525,17 +529,17 @@ def test_speck(path, dest_path, dec_level):
 
 
 if __name__ == '__main__':
-    # split_raw("/Users/juancgalan/Documents/video_test/akiyo/original/akiyo_cif.mov",
-    #           "/Users/juancgalan/Documents/video_test/akiyo/raw/")
+    # split_raw("data/akiyo_cif.y4m",
+    #           "data/akiyo/raw/")
     # compress_fullsearch(
     #     "/Users/juancgalan/Documents/video_test/akiyo/raw/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/")
     # compress_key_h265(
-    #     "/home/zenathar/Documents/video_test/akiyo/raw/",
-    #     "/home/zenathar/Documents/video_test/akiyo/h265key/")
-    # decompress_key_h265(
-    #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/h265keydec/")
+    #     "data/akiyo/raw/",
+    #     "data/akiyo/h265key/")
+    decompress_key_h265(
+        "data/akiyo/h265key/",
+        "data/akiyo/h265keydec/")
     # compress_error_h265(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/")
@@ -546,10 +550,10 @@ if __name__ == '__main__':
     #     "/Users/juancgalan/Documents/video_test/akiyo/fullsearch/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/defullsearch/")
     # compress_key_speck(
-    #     "/Users/juancgalan/Documents/video_test/akiyo/raw/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/speckkey/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/despeckkey/",
+    #     "data/akiyo/raw/",
+    #     "data/akiyo/speckkey/",
+    #     "data/akiyo/h265key/",
+    #     "data/akiyo/despeckkey/",
     #     4)
     # decompress_key_speck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/speckkey/",
@@ -557,10 +561,10 @@ if __name__ == '__main__':
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
     #     4)
     # compress_key_fvspeck(
-    #     "/Users/juancgalan/Documents/video_test/akiyo/raw/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/fvspeckkey/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/h265key/",
-    #     "/Users/juancgalan/Documents/video_test/akiyo/defvspeckkey/",
+    #     "data/akiyo/raw/",
+    #     "data/akiyo/fvspeckkey/",
+    #     "data/akiyo/h265key/",
+    #     "data/akiyo/defvspeckkey/",
     #     4)
     # decompress_key_fvspeck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fvskpeckkey/",
@@ -578,12 +582,12 @@ if __name__ == '__main__':
     #     "/Users/juancgalan/Documentsc/video_test/akiyo/despeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
     #     4)
-    compress_error_fvspeck(
-        "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
-        "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
-        "/home/zenathar/Documents/video_test/akiyo/h265error/",
-        "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
-        4)
+    # compress_error_fvspeck(
+    #     "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
+    #     "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
+    #     "/home/zenathar/Documents/video_test/akiyo/h265error/",
+    #     "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
+    #     4)
     # decompress_error_fvspeck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/defvspeckerror/",
