@@ -9,6 +9,8 @@ import waveletcodec.tools as tls
 import waveletcodec.h264 as h264
 import waveletcodec.entropy as etr
 import waveletcodec.wave as wave
+import getopt
+import sys
 
 
 class MainHeader(object):
@@ -42,28 +44,29 @@ class SPECKFrameHeader(object):
     shape = 0
 
 
-def split_raw(filename, dest_file):
+def split_raw(input_file, output_folder, frames):
     '''This function transcode a file to a Wavelet Compressed Video Format
     '''
-    if dest_file[-1] != "/":
-        dest_file += "/"
-    original = cv2.VideoCapture(filename)
+    if output_folder[-1] != "/":
+        output_folder += "/"
+    original = cv2.VideoCapture(input_file)
     loaded, frame = original.read()
-    if not os.path.exists(dest_file):
-        os.makedirs(dest_file)
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
     total_frames = original.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
+    total_frames = frames if total_frames > frames else total_frames
     current_frame = original.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
     frame_count = 0
     info = MainHeader()
     while loaded and current_frame < total_frames:
-        target_file = dest_file + str(int(frame_count)) + ".png"
+        target_file = output_folder + str(int(frame_count)) + ".png"
         frame = cv2.cvtColor(frame, cv2.cv.CV_BGR2GRAY)
         cv2.imwrite(target_file, frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0])
         loaded, frame = original.read()
         current_frame = original.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
         frame_count += 1
     info.frames = int(frame_count)
-    info_file = dest_file + "header.dat"
+    info_file = output_folder + "header.dat"
     pickle.dump(info, open(info_file, "w"))
 
 
@@ -525,6 +528,31 @@ def test_speck(path, dest_path, dec_level):
 
 
 if __name__ == '__main__':
+    home_dir    = os.path.expanduser("~")
+    frames      = 10
+    base_path   = "Documents/video_test/"
+    original    = "original/"
+    raw         = "raw/"
+    try:
+        # Short option syntax: "hv:"
+        # Long option syntax: "help" or "verbose="
+        opts, args = getopt.getopt(sys.argv[1:], "rv", ["raw=", "verbose"])
+    
+    except getopt.GetoptError, err:
+        # Print debug info
+        print str(err)
+        error_action
+    
+    for option, argument in opts:
+        if option in ("-r", "--raw"):
+            # split_raw(
+            #         "{0}{1}{2}".format(home_dir, base_path, original, filename, argument),
+            #         "{0}{1}{2}".format(home_dir, base_path, raw))
+            print("{0}{1}{2}{3}{4}.mov".format(home_dir, base_path, argument, original, arguments))
+            print("{0}{1}{2}".format(home_dir, base_path, raw))
+            
+        elif option in ("-v", "--verbose"):
+            print("v")
     # split_raw("/Users/juancgalan/Documents/video_test/akiyo/original/akiyo_cif.mov",
     #           "/Users/juancgalan/Documents/video_test/akiyo/raw/")
     # compress_fullsearch(
@@ -578,12 +606,12 @@ if __name__ == '__main__':
     #     "/Users/juancgalan/Documentsc/video_test/akiyo/despeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/h265error/",
     #     4)
-    compress_error_fvspeck(
-        "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
-        "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
-        "/home/zenathar/Documents/video_test/akiyo/h265error/",
-        "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
-        4)
+    # compress_error_fvspeck(
+    #     "/home/zenathar/Documents/video_test/akiyo/fullsearch/",
+    #     "/home/zenathar/Documents/video_test/akiyo/fvspeckerror/",
+    #     "/home/zenathar/Documents/video_test/akiyo/h265error/",
+    #     "/home/zenathar/Documents/video_test/akiyo/defvspeckerror/",
+    #     4)
     # decompress_error_fvspeck(
     #     "/Users/juancgalan/Documents/video_test/akiyo/fvspeckerror/",
     #     "/Users/juancgalan/Documents/video_test/akiyo/defvspeckerror/",
