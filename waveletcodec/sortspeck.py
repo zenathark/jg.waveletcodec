@@ -1,7 +1,6 @@
 
 import waveletcodec.wave as wvt
 import math
-from numpy.numarray.numerictypes import Int
 import numpy as np
 import waveletcodec.rastering as raster
 import waveletcodec.entropy as tpy
@@ -77,7 +76,7 @@ class speck(object):
         self.output = []
         self.out_idx = 0
         # cheat code
-        self.clone = wvt.WCSet(np.zeros((self.wv.shape), dtype=Int),
+        self.clone = wvt.WCSet(np.zeros((self.wv.shape), dtype=np.int32),
                                self.wv.level, wvt.CDF97)
 
     def S_n(self, S):
