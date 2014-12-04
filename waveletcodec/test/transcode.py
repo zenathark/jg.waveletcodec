@@ -54,10 +54,13 @@ def split_raw(input_file, output_folder, frames):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     total_frames = original.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
-    total_frames = frames if total_frames > frames else total_frames
+    # total_frames = frames if total_frames > frames else total_frames
+    total_frames = frames
     current_frame = original.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
     frame_count = 0
     info = MainHeader()
+    print(frames)
+    print(current_frame)
     while loaded and current_frame < total_frames:
         target_file = output_folder + str(int(frame_count)) + ".png"
         frame = cv2.cvtColor(frame, cv2.cv.CV_BGR2GRAY)
@@ -82,7 +85,7 @@ def compress_fullsearch(path, dest_path):
     key_frame = cv2.imread(path + "0.png", cv2.CV_LOAD_IMAGE_GRAYSCALE)
     if not cv2.imwrite(dest_path + "key.png",
                        key_frame, [cv2.cv.CV_IMWRITE_PNG_COMPRESSION, 0]):
-        print "Failed to create: key frame"
+        print("Failed to create: key frame")
     for c in range(1, info.frames):
         frame = cv2.imread(path + str(c) + info.ext, cv2.CV_LOAD_IMAGE_GRAYSCALE)
         error, mvs = intra.encode_motion_frame(frame, key_frame,
@@ -530,13 +533,14 @@ def test_speck(path, dest_path, dec_level):
 if __name__ == '__main__':
     home_dir    = os.path.expanduser("~")
     frames      = 10
-    base_path   = "Documents/video_test/"
-    original    = "original/"
-    raw         = "raw/"
+    base_path   = "/Documents/video_test/"
+    original    = "/original/"
+    raw         = "/raw/"
+    fullsearch  = "/fullsearch/"
     try:
         # Short option syntax: "hv:"
         # Long option syntax: "help" or "verbose="
-        opts, args = getopt.getopt(sys.argv[1:], "rv", ["raw=", "verbose"])
+        opts, args = getopt.getopt(sys.argv[1:], "rvf", ["raw=", "verbose", "fulls="])
     
     except getopt.GetoptError, err:
         # Print debug info
@@ -545,11 +549,16 @@ if __name__ == '__main__':
     
     for option, argument in opts:
         if option in ("-r", "--raw"):
-            # split_raw(
-            #         "{0}{1}{2}".format(home_dir, base_path, original, filename, argument),
-            #         "{0}{1}{2}".format(home_dir, base_path, raw))
-            print("{0}{1}{2}{3}{4}.mov".format(home_dir, base_path, argument, original, arguments))
-            print("{0}{1}{2}".format(home_dir, base_path, raw))
+            split_raw(
+                    "{0}{1}{2}{3}{4}.y4m".format(
+                        home_dir, base_path, argument, original, argument),
+                    "{0}{1}{2}{3}".format(home_dir, base_path, argument, raw),
+                    frames)
+        elif option in ("-f", "--fulls"):
+            compress_fullsearch(
+                    "{0}{1}{2}{3}".format(
+                        home_dir, base_path, argument, raw),
+                    "{0}{1}{2}{3}".format(home_dir, base_path, argument, fullsearch))
             
         elif option in ("-v", "--verbose"):
             print("v")
