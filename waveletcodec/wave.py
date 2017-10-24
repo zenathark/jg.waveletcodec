@@ -7,7 +7,7 @@
 
 """
 
-import pylab as np
+import numpy as np
 import waveletcodec.tools as tools
 import waveletcodec.lwt as lwt
 import cv2
@@ -49,7 +49,7 @@ class WCSet(np.ndarray):
             The data is shared between both objects
 
         """
-        print cls
+        print(cls)
         obj = np.asarray(array).view(cls)
         obj.level = level
         obj.filter = filter_

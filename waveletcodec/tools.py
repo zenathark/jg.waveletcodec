@@ -5,6 +5,7 @@ Description: A set of tools for signal processing based on numpy.ndarray
 '''
 from __future__ import division
 import scipy as np
+from scipy import ndimage
 
 class CircularStack(object):
     '''
@@ -122,11 +123,11 @@ def zero_padding_n(signal, base, squared=True):
 def unpadding(signal, dim):
     y, x = dim
     sy, sx = signal.shape
-    y0 = np.trunc((sy-y) / 2)
-    x0 = np.trunc((sx-x) / 2)
-    yt = y0 + y
-    xt = x0 + x
-    return signal[y0:yt,x0:xt]
+    y0 = int(np.trunc((sy-y) / 2))
+    x0 = int(np.trunc((sx-x) / 2))
+    yt = int(y0 + y)
+    xt = int(x0 + x)
+    return signal[y0:yt, x0:xt]
 
 
 def normalize(data, **kw):
@@ -241,3 +242,37 @@ def mse(original, signal):
     diff = (original - signal) ** 2
     MSE = diff.sum() / np.array(original.shape).prod()
     return MSE
+
+def ssim(originalImage, estimatedImage):
+    """This function for falculates the Structural Similarity Index.
+     SSMI is described in:
+     http://www.cns.nyu.edu/~lcv/ssim/ssim.m
+     This implementation uses default constants, it is
+     expected that a later implementation in Julia allow
+    for customization
+    """
+    # Constants defined in the paper
+    K = np.array([0.01, 0.03])
+    # Dynamic range of the luma channel
+    L = 255
+    fOriginalImage = originalImage.astype(float)
+    fEstimatedImage = estimatedImage.astype(float)
+    M, N = originalImage.shape
+    f = max(1, round(min(M, N) / 256))
+    fOriginalImage = ndimage.filters.median_filter(fOriginalImage, f)
+    fEstimatedImage = ndimage.filters.median_filter(fEstimatedImage, f)
+    fOriginalImage = fOriginalImage[::f, ::f]
+    fEstimatedImage = fEstimatedImage[::f, ::f]
+    C1 = (K[0] * L) ** 2
+    C2 = (K[1] * L) ** 2
+    mu1 = ndimage.filters.gaussian_filter(fOriginalImage, 1.5)
+    mu2 = ndimage.filters.gaussian_filter(fEstimatedImage, 1.5)
+    mu1_sq = mu1 * mu1
+    mu2_sq = mu2 * mu2
+    mu1_mu2 = mu1 * mu2
+    sigma1_sq = ndimage.filters.gaussian_filter(fOriginalImage * fOriginalImage, 1.5) - mu1_sq
+    sigma2_sq = ndimage.filters.gaussian_filter(fEstimatedImage * fEstimatedImage, 1.5) - mu2_sq
+    sigma12 = ndimage.filters.gaussian_filter(fOriginalImage * fEstimatedImage, 1.5) - mu1_mu2
+    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+    mssim = np.mean(ssim_map)
+    return mssim

@@ -7,7 +7,7 @@ import waveletcodec.entropy as tpy
 
 
 class speck(object):
-    #wavelet object
+    # wavelet object
     wv = 0
     LIS = []
     LSP = []
@@ -32,8 +32,8 @@ class speck(object):
         # #sorting
         try:
             while self.n > 0:
-                print self.n
-                print "%d-%d:%d" % (bpp, self.out_idx, self.bit_bucket)
+                print(self.n)
+                print(("%d-%d:%d") % (bpp, self.out_idx, self.bit_bucket))
                 for l in list(self.LIS):
                     self.ProcessS(l)
                 self.ProcessI()
@@ -51,11 +51,12 @@ class speck(object):
             # return [self.wv.shape[0], self.wv.shape[1], self.wv.level,
             #         wise_bit, self.wv.filter, self.output]
         r = {}
-        r['colums'] = self.wv.shape[1]
+        r['columns'] = self.wv.shape[1]
         r['rows'] = self.wv.shape[0]
         r['level'] = self.wv.level
         r['wisebit'] = wise_bit
         r['payload'] = self.output
+        r['clone'] = self.clone
         return r
 
     def initialization(self):
@@ -64,8 +65,8 @@ class speck(object):
         self.nextLIS = []  # ts.CircularStack(self.wv.cols * self.wv.rows)
         self.LSP = []
         self.nextLSP = []
-        s_size = (self.wv.shape[0] * self.wv.shape[1] /
-                  2 ** (2 * self.wv.level))
+        s_size = int(self.wv.shape[0] * self.wv.shape[1] /
+                     2 ** (2 * self.wv.level))
         S = set(X[:s_size])
         del X[:s_size]
         self.I = set(X)
@@ -134,7 +135,7 @@ class speck(object):
         self.ProcessI()
 
     def iInitialization(self, width, height, level, wise_bit, filter_):
-        self.wv = wvt.WCSet(np.zeros((width, height), dtype=Int), level,
+        self.wv = wvt.WCSet(np.zeros((width, height), dtype=int), level,
                             filter_=filter_)
         self.wv.level = level
         X = raster.get_z_order(self.wv.shape[0] * self.wv.shape[1])
@@ -142,8 +143,8 @@ class speck(object):
         self.nextLIS = []
         self.LSP = []
         self.nextLSP = []
-        s_size = (self.wv.shape[0] * self.wv.shape[1] /
-                  2 ** (2 * self.wv.level))
+        s_size = int(self.wv.shape[0] * self.wv.shape[1] /
+                     2 ** (2 * self.wv.level))
         S = set(X[:s_size])
         del X[:s_size]
         self.I = set(X)
@@ -156,10 +157,10 @@ class speck(object):
         self.iInitialization(width, height, level, wise_bit, filter_)
         self.output = stream
         self._coding = False
-        #sorting
+        # sorting
         try:
             while self.n > 0:
-                print self.n
+                print(self.n)
                 for l in list(self.LIS):
                     self.ProcessS(l)
                 self.ProcessI()
@@ -189,6 +190,7 @@ class speck(object):
             self.createCoeff(S, self.read())
 
     def splitList(self, l, size=0):
+        size = int(size)
         l = list(l)
         if size == 0:
             if len(l) % 4 != 0:
@@ -216,10 +218,10 @@ class speck(object):
     def refinement(self):
         for i in self.LSP:
             if self.wv[i] > 0:
-                coeff = self.wv[i]
+                coeff = int(self.wv[i])
                 sign = 1
             else:
-                coeff = abs(self.wv[i])
+                coeff = int(abs(self.wv[i]))
                 sign = -1
             if (coeff & 2 ** self.n) > 0:
                 self.out(1)
@@ -234,7 +236,7 @@ class speck(object):
                     self.wv[i] |= 2 ** self.n
                 else:
                     self.wv[i] = (abs(self.wv[i])
-                                           | 2 ** self.n) * -1
+                                  | 2 ** self.n) * -1
 
     def push(self, data):
         self.nextLSP.append(tuple(data))
@@ -242,15 +244,15 @@ class speck(object):
     def createCoeff(self, coords, sg, wv=None):
         sign = 1 if sg == 0 else -1
         if wv is None:
-            self.wv[coords] = (2 ** self.n) * sign
+            self.wv[coords[0], coords[1]] = (2 ** self.n) * sign
         else:
-            wv[coords[0], coords[1]] = (2 ** self.n) * sign
+            wv[int(coords[0]), int(coords[1])] = (2 ** self.n) * sign
 
     def check(self):
         for i in self.LSP:
             lg2 = int(np.log2(abs(self.clone[i])))
             if (lg2 < self.n):
-                print "error"
+                print("error")
                 raise Exception
 
 
@@ -276,6 +278,7 @@ class fv_speck(speck):
         r['center'] = f_center
         r['c'] = c
         r['gamma'] = gamma
+        r['clone'] = self.clone
         return r
 
     def expand(self, stream, width, height, level, wise_bit, bpp, lbpp,
@@ -285,7 +288,7 @@ class fv_speck(speck):
         self.alpha = alpha
         self.P = f_center
         self.c = c
-        self.wv = wvt.wavelet2D(np.zeros((width, height), dtype=Int), level)
+        self.wv = wvt.wavelet2D(np.zeros((width, height), dtype=int), level)
         self.dt = self.wv.data
         self.wv.level = level
         self.gamma = gamma

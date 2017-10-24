@@ -45,7 +45,7 @@ class arithmeticb(object):
             d = self._h - self._l
             self._h = self._l + d * h_i
             self._l = self._l + d * l_i
-            print "l:%f h:%f" % (self._l, self._h)
+            print("l:%f h:%f") % (self._l, self._h)
         r = {"payload": self._l, "model": self._p}
         return r
 
@@ -59,7 +59,7 @@ class arithmeticb(object):
         self._output = data["model"]
         n = data["payload"]
         while(n > 0):
-            for i, (l_i, h_i) in it.izip(range(len(self._p)), self._p):
+            for i, (l_i, h_i) in zip(range(len(self._p)), self._p):
                 if l_i <= n and n < h_i:
                     self._output.append(i)
                     d = h_i - l_i
@@ -91,7 +91,7 @@ class barithmeticb(object):
         super(barithmeticb, self).__init__()
         self._bit_size = bit_size
         self._sigma = sigma
-        self._idx = dict([i for i in it.izip(sigma, range(len(sigma)))])
+        self._idx = dict([i for i in zip(sigma, range(len(sigma)))])
         self._scale = 2 ** self._bit_size - 1
         if 'model' in kargs:
             self._model = kargs['model']
@@ -120,7 +120,7 @@ class barithmeticb(object):
                 pass
             while self._check_underflow():
                 pass
-            print "l:%d h:%d" % (self._l, self._h)
+            print("l:%d h:%d") % (self._l, self._h)
         self._output += [int(i) for i in bin(self._l)[2:]]
         r = {"payload": self._output, "model": self._model}
         return r
@@ -181,7 +181,7 @@ class barithmeticb(object):
         self._output = data["model"]
         n = data["payload"]
         while(n > 0):
-            for i, (l_i, h_i) in it.izip(range(len(self._p)), self._p):
+            for i, (l_i, h_i) in zip(range(len(self._p)), self._p):
                 if l_i <= n and n < h_i:
                     self._output.append(i)
                     d = h_i - l_i
@@ -213,7 +213,7 @@ class abac(object):
         super(abac, self).__init__()
         self._bit_size = bit_size
         self._sigma = sigma
-        self._idx = dict([i for i in it.izip(sigma, range(len(sigma)))])
+        self._idx = dict([i for i in zip(sigma, range(len(sigma)))])
         self._scale = 2 ** self._bit_size - 1
         if 'model' in kargs:
             self._model = kargs['model']
@@ -235,7 +235,6 @@ class abac(object):
         self._initialize()
         for i in data:
             self.push(i)
-            # print "l:%d h:%d" % (self._l, self._h)
         return self.get_current_stream()
 
     def push(self, symbol):
@@ -305,7 +304,7 @@ class abac(object):
         self._output = data["model"]
         n = data["payload"]
         while(n > 0):
-            for i, (l_i, h_i) in it.izip(range(len(self._p)), self._p):
+            for i, (l_i, h_i) in zip(range(len(self._p)), self._p):
                 if l_i <= n and n < h_i:
                     self._output.append(i)
                     d = h_i - l_i
